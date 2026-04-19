@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market Dashboard</title>
+<style>
+  :root {
+    --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a;
+    --text:#e2e8f0; --sub:#b6bdcc; --muted:#8892a4;
+    --accent:#60a5fa; --green:#22c55e; --amber:#f59e0b;
+    --red:#ef4444; --blue:#3b82f6; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',-apple-system,sans-serif;font-size:14px;line-height:1.5;padding:16px 20px 32px;}
+  @media(max-width:768px){body{font-size:13px;padding:12px 12px 24px;}}
+  a{color:var(--accent);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  /* Header */
+  header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
+  header h1{font-size:20px;font-weight:600;letter-spacing:-0.01em;}
+  header .subtitle{font-size:12px;color:var(--muted);margin-top:2px;}
+  #status{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px;}
+  #status .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* Tabs */
+  nav.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tab-btn{background:none;border:none;color:var(--muted);font-size:14px;font-weight:500;padding:10px 18px;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;white-space:nowrap;font-family:inherit;}
+  .tab-btn:hover{color:var(--sub);}
+  .tab-btn.active{color:var(--text);border-bottom-color:var(--accent);}
+  @media(max-width:768px){.tab-btn{padding:9px 14px;font-size:13px;}}
+
+  /* Alert banner */
+  .alerts{margin-bottom:16px;display:flex;flex-direction:column;gap:8px;}
+  .alert-pill{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);font-size:13px;}
+  .alert-pill .icon{font-size:16px;flex-shrink:0;}
+  .alert-pill.red{border-color:#7c1d1d;background:#2a0f0f;}
+  .alert-pill.amber{border-color:#78350f;background:#2a1a08;}
+  .alert-pill.blue{border-color:#1e3a8a;background:#0e1a33;}
+  .alert-pill.green{border-color:#14532d;background:#0a1e12;}
+  .alert-none{color:var(--muted);font-size:12px;padding:9px 14px;border-radius:10px;border:1px dashed var(--border);background:transparent;text-align:center;}
+
+  /* KPI grid */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+  @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px;}}
+
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden;}
+  .kpi-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;}
+  .kpi-label{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.03em;text-transform:uppercase;}
+  .kpi-src{font-size:9px;color:var(--muted);opacity:.6;background:rgba(255,255,255,.04);padding:2px 6px;border-radius:4px;}
+  .kpi-value{font-size:22px;font-weight:600;line-height:1.15;margin-bottom:2px;}
+  .kpi-value.loading{color:var(--muted);font-size:14px;font-weight:400;}
+  .kpi-sub{font-size:11px;color:var(--sub);}
+  .kpi-change{font-size:11px;margin-top:4px;font-weight:500;}
+  .kpi-change.up{color:var(--green);}
+  .kpi-change.down{color:var(--red);}
+  .kpi-change.neutral{color:var(--muted);}
+  .kpi-date{font-size:10px;color:var(--muted);margin-top:4px;opacity:.7;}
+  .kpi-ribbon{position:absolute;top:0;right:0;width:3px;height:100%;}
+  .kpi-ribbon.green{background:var(--green);}
+  .kpi-ribbon.amber{background:var(--amber);}
+  .kpi-ribbon.red{background:var(--red);}
+  .kpi-ribbon.blue{background:var(--blue);}
+  .kpi-ribbon.neutral{background:var(--border);}
+
+  /* Placeholder panels for Phase 2/3 */
+  .placeholder{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px 24px;text-align:center;color:var(--sub);}
+  .placeholder h2{font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px;}
+  .placeholder .phase-badge{display:inline-block;font-size:10px;padding:3px 10px;border-radius:10px;background:var(--accent);color:var(--bg);margin-bottom:14px;font-weight:600;letter-spacing:.05em;}
+  .placeholder p{font-size:13px;margin-bottom:10px;}
+  .placeholder .link-big{display:inline-block;margin-top:12px;padding:10px 18px;background:var(--accent);color:var(--bg);border-radius:8px;font-weight:600;}
+  .placeholder .link-big:hover{text-decoration:none;opacity:.85;}
+
+  /* Footer */
+  footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);text-align:center;}
+  footer a{margin:0 6px;}
+
+  /* Section helpers */
+  section.tab-panel{animation:fadein .25s ease;}
+  section.tab-panel[hidden]{display:none;}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+  .section-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 2px 8px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Market Dashboard</h1>
+    <div class="subtitle">매크로 · 센티멘트 통합 뷰</div>
+  </div>
+  <div id="status"><span class="dot"></span><span id="statusText">데이터 로딩 중…</span></div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab-btn active" data-tab="overview" role="tab">종합</button>
+  <button class="tab-btn" data-tab="macro" role="tab">매크로</button>
+  <button class="tab-btn" data-tab="sentiment" role="tab">센티멘트</button>
+</nav>
+
+<main>
+  <!-- 종합 탭 -->
+  <section class="tab-panel" id="tab-overview">
+    <div class="section-title">시그널</div>
+    <div class="alerts" id="alertsBox">
+      <div class="alert-none">자동 감지 중…</div>
+    </div>
+
+    <div class="section-title">핵심 지표</div>
+    <div class="kpi-grid" id="kpiGrid">
+      <!-- 동적 렌더 -->
+    </div>
+  </section>
+
+  <!-- 매크로 탭 (Phase 2 예정) -->
+  <section class="tab-panel" id="tab-macro" hidden>
+    <div class="placeholder">
+      <div class="phase-badge">PHASE 2</div>
+      <h2>매크로 상세 — 포팅 예정</h2>
+      <p>일드커브 · 금리 스프레드 · 유동성 차트 · 외부 교차검증 등이 이 탭에 들어올 예정이야.</p>
+      <p>지금은 전용 매크로 대시보드에서 확인할 수 있어:</p>
+      <a class="link-big" href="https://gmai1234.github.io/macro-dashboard/" target="_blank" rel="noopener">매크로 대시보드 열기 ↗</a>
+    </div>
+  </section>
+
+  <!-- 센티멘트 탭 (Phase 3 예정) -->
+  <section class="tab-panel" id="tab-sentiment" hidden>
+    <div class="placeholder">
+      <div class="phase-badge">PHASE 3</div>
+      <h2>센티멘트 상세 — 포팅 예정</h2>
+      <p>Fear &amp; Greed 게이지 · 서브 지표 · AAII 추이 차트가 이 탭에 들어올 예정이야.</p>
+      <p>지금은 전용 센티멘트 대시보드에서 확인할 수 있어:</p>
+      <a class="link-big" href="https://gmai1234.github.io/sentiment-dashboard/" target="_blank" rel="noopener">센티멘트 대시보드 열기 ↗</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div>
+    원본 소스:
+    <a href="https://gmai1234.github.io/macro-dashboard/" target="_blank" rel="noopener">매크로</a> ·
+    <a href="https://gmai1234.github.io/sentiment-dashboard/" target="_blank" rel="noopener">센티멘트</a> ·
+    <a href="https://github.com/gmai1234/market-dashboard" target="_blank" rel="noopener">레포지토리</a>
+  </div>
+  <div style="margin-top:4px;opacity:.6;">데이터: FRED · CNN F&amp;G · AAII</div>
+</footer>
+
+<!-- 원본 레포의 GitHub Pages URL에서 직접 로드 -->
+<script src="https://gmai1234.github.io/macro-dashboard/fred_data.js" async onload="window._fredLoaded=true;window._bootstrap&&window._bootstrap()"></script>
+<script src="https://gmai1234.github.io/sentiment-dashboard/sentiment_data.js" async onload="window._sentLoaded=true;window._bootstrap&&window._bootstrap()"></script>
+
+<script>
+// ── 탭 전환 ──
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const target=btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b===btn));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.hidden = (p.id!=='tab-'+target));
+    history.replaceState(null,'','#'+target);
+  });
+});
+if(location.hash){
+  const t=location.hash.slice(1);
+  const btn=document.querySelector(`.tab-btn[data-tab="${t}"]`);
+  if(btn) btn.click();
+}
+
+// ── 유틸리티 ──
+const fmt = (v,digits=2,prefix='',suffix='') =>
+  (v==null||isNaN(v))?'–':`${prefix}${Number(v).toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits})}${suffix}`;
+
+const chgEl = (diff,digits=2,suffix='')=>{
+  if(diff==null||isNaN(diff)) return '';
+  const cls = diff>0?'up':diff<0?'down':'neutral';
+  const sign = diff>0?'▲ +':diff<0?'▼ ':'– ';
+  return `<div class="kpi-change ${cls}">${sign}${Math.abs(diff).toFixed(digits)}${suffix}</div>`;
+};
+
+// ── FRED 데이터 디코드 (hex + deflate-raw) ──
+async function decodeFred(){
+  if(!window.FRED_DATA_HEX) return null;
+  try{
+    const b=new Uint8Array(window.FRED_DATA_HEX.match(/.{2}/g).map(x=>parseInt(x,16)));
+    const s=new ReadableStream({start(c){c.enqueue(b);c.close();}});
+    const ch=[],rd=s.pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+    while(true){const {done,value}=await rd.read();if(done)break;ch.push(value);}
+    const t=ch.reduce((s,c)=>s+c.length,0),o=new Uint8Array(t);
+    let off=0;for(const c of ch){o.set(c,off);off+=c.length;}
+    return JSON.parse(new TextDecoder().decode(o));
+  }catch(e){ console.warn('FRED 디코드 실패',e); return null; }
+}
+
+// ── 시리즈 조회 헬퍼 ──
+const findEntry = (series,id,date) => (series?.[id]||[]).find(o=>!date||o.date<=date) || null;
+const findVal   = (series,id,date) => { const e=findEntry(series,id,date); return (e && e.value!=='.')?parseFloat(e.value):null; };
+const calcNTFS  = (series,date) => {
+  const a=findVal(series,'DGS3MO',date),b=findVal(series,'DGS1',date),c=findVal(series,'DGS2',date);
+  return (a!==null&&b!==null&&c!==null)?(2.25*c - 1.25*b - a):null;
+};
+
+// ── KPI 렌더 ──
+function renderKPIs(fredPayload, sentData){
+  const grid=document.getElementById('kpiGrid');
+  grid.innerHTML='';
+  const cards=[];
+
+  // 1. Fear & Greed Index
+  if(sentData?.fear_greed){
+    const fg=sentData.fear_greed;
+    const score=fg.score, prev=fg.previous_close, diff=score-prev;
+    const ratingKo={'extreme fear':'극도의 공포','fear':'공포','neutral':'중립','greed':'탐욕','extreme greed':'극도의 탐욕'}[fg.rating]||fg.rating;
+    const ribbon = score<=25?'blue':score<=45?'neutral':score<=55?'neutral':score<=75?'amber':'red';
+    cards.push({
+      label:'Fear &amp; Greed',src:'CNN',ribbon,
+      value:fmt(score,1),sub:ratingKo,
+      change:chgEl(diff,1),
+      date:(fg.timestamp||'').slice(0,10)
+    });
+  } else {
+    cards.push({label:'Fear &amp; Greed',src:'CNN',ribbon:'neutral',loading:true});
+  }
+
+  // 2. AAII Bull-Bear Spread
+  if(sentData?.aaii?.latest){
+    const L=sentData.aaii.latest;
+    const hist=sentData.aaii.history||[];
+    const prev=hist.length>0 ? hist[hist.length-2]?.spread ?? hist[hist.length-1]?.spread : null;
+    const diff=(prev!=null)?L.spread-prev:null;
+    const ribbon = L.spread<-15?'blue':L.spread>20?'amber':'green';
+    cards.push({
+      label:'AAII Bull-Bear',src:'AAII',ribbon,
+      value:(L.spread>=0?'+':'')+L.spread+'%',sub:`B ${L.bullish}%  /  B ${L.bearish}%`,
+      change:(diff!=null)?chgEl(diff,0,'%p'):'',
+      date:L.date
+    });
+  } else {
+    cards.push({label:'AAII Bull-Bear',src:'AAII',ribbon:'neutral',loading:true});
+  }
+
+  // 3. 장단기차 (10Y-3M)
+  if(fredPayload?.series){
+    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
+    const cur=findVal(s,'T10Y3M',d);
+    const e=findEntry(s,'T10Y3M',d);
+    // 1주 전 비교
+    const prev=(s.T10Y3M||[]).find(o=>o.date<=(e?.date||d) && o.date!==e?.date && (new Date(e.date)-new Date(o.date))>=7*86400000);
+    const prevV=prev?parseFloat(prev.value):null;
+    const diff=(cur!=null && prevV!=null)?cur-prevV:null;
+    const ribbon = cur<0?'red':cur<0.2?'amber':'green';
+    cards.push({
+      label:'장단기차 10Y-3M',src:'FRED',ribbon,
+      value:fmt(cur,2,'','%'),sub:cur<0?'역전 중':cur<0.2?'거의 평탄':'정상 기울기',
+      change:chgEl(diff,2,'%p'),date:e?.date||'–'
+    });
+  } else {
+    cards.push({label:'장단기차 10Y-3M',src:'FRED',ribbon:'neutral',loading:true});
+  }
+
+  // 4. NTFS (선도지표)
+  if(fredPayload?.series){
+    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
+    const cur=calcNTFS(s,d);
+    const e=findEntry(s,'DGS3MO',d);
+    const prev=(s.DGS3MO||[]).find(o=>o.date<=(e?.date||d) && o.date!==e?.date && (new Date(e.date)-new Date(o.date))>=7*86400000);
+    const prevV=prev?calcNTFS(s,prev.date):null;
+    const diff=(cur!=null && prevV!=null)?cur-prevV:null;
+    // NTFS > 0.5: 인상 압력 / < -0.5: 인하 선반영
+    const ribbon = cur>0.5?'red':cur<-0.5?'green':'neutral';
+    cards.push({
+      label:'NTFS (선도지표)',src:'FRED',ribbon,
+      value:fmt(cur,3,'','%'),sub:cur>0.5?'인상 선반영':cur<-0.5?'인하 선반영':'중립',
+      change:chgEl(diff,3,'%p'),date:e?.date||'–'
+    });
+  } else {
+    cards.push({label:'NTFS (선도지표)',src:'FRED',ribbon:'neutral',loading:true});
+  }
+
+  // 5. SOFR - IORB
+  if(fredPayload?.series){
+    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
+    const sv=findVal(s,'SOFR',d), iv=findVal(s,'IORB',d);
+    const cur=(sv!=null && iv!=null)?sv-iv:null;
+    const e=findEntry(s,'SOFR',d);
+    const ribbon = cur==null?'neutral':cur>0.05?'red':cur>0?'amber':'green';
+    cards.push({
+      label:'SOFR − IORB',src:'FRED',ribbon,
+      value:fmt(cur,3,'','%'),sub:cur==null?'–':cur>0.05?'자금 스트레스':cur>0?'소폭 상회':'정상',
+      date:e?.date||'–'
+    });
+  } else {
+    cards.push({label:'SOFR − IORB',src:'FRED',ribbon:'neutral',loading:true});
+  }
+
+  // 6. 준비금 (WRESBAL) — 단위 $B
+  if(fredPayload?.series){
+    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
+    const e=findEntry(s,'WRESBAL',d);
+    const v=findVal(s,'WRESBAL',d);
+    // 4주 전 비교
+    const prev=(s.WRESBAL||[]).find(o=>o.date<=(e?.date||d) && (new Date(e.date)-new Date(o.date))>=28*86400000);
+    const prevV=prev?parseFloat(prev.value):null;
+    const diff=(v!=null && prevV!=null)?(v-prevV)/1000:null;
+    cards.push({
+      label:'준비금 (WRESBAL)',src:'FRED',ribbon:'neutral',
+      value:fmt(v!=null?v/1000:null,0,'$','B'),sub:'4주 전 대비',
+      change:chgEl(diff,0,'B'),date:e?.date||'–'
+    });
+  } else {
+    cards.push({label:'준비금 (WRESBAL)',src:'FRED',ribbon:'neutral',loading:true});
+  }
+
+  // 7. TGA (WDTGAL) — 단위 $B
+  if(fredPayload?.series){
+    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
+    const e=findEntry(s,'WDTGAL',d);
+    const v=findVal(s,'WDTGAL',d);
+    const prev=(s.WDTGAL||[]).find(o=>o.date<=(e?.date||d) && (new Date(e.date)-new Date(o.date))>=28*86400000);
+    const prevV=prev?parseFloat(prev.value):null;
+    const diff=(v!=null && prevV!=null)?(v-prevV)/1000:null;
+    cards.push({
+      label:'TGA (WDTGAL)',src:'FRED',ribbon:'neutral',
+      value:fmt(v!=null?v/1000:null,0,'$','B'),sub:'4주 전 대비',
+      change:chgEl(diff,0,'B'),date:e?.date||'–'
+    });
+  } else {
+    cards.push({label:'TGA (WDTGAL)',src:'FRED',ribbon:'neutral',loading:true});
+  }
+
+  // 8. (옵션) 자리채움 — 카드가 7개라 그리드 균형용. 필요하면 숨김.
+  //  → 디스플레이상 4열일 때 8번째 자리 비면 괜찮음. 생략.
+
+  // 렌더
+  grid.innerHTML = cards.map(c=>{
+    if(c.loading){
+      return `<div class="kpi"><span class="kpi-ribbon ${c.ribbon||'neutral'}"></span>
+        <div class="kpi-head"><div class="kpi-label">${c.label}</div><span class="kpi-src">${c.src}</span></div>
+        <div class="kpi-value loading">로딩 중…</div></div>`;
+    }
+    return `<div class="kpi"><span class="kpi-ribbon ${c.ribbon||'neutral'}"></span>
+      <div class="kpi-head"><div class="kpi-label">${c.label}</div><span class="kpi-src">${c.src}</span></div>
+      <div class="kpi-value">${c.value}</div>
+      ${c.sub?`<div class="kpi-sub">${c.sub}</div>`:''}
+      ${c.change||''}
+      ${c.date?`<div class="kpi-date">${c.date}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── 자동 경고 ──
+function renderAlerts(fredPayload, sentData){
+  const box=document.getElementById('alertsBox');
+  const alerts=[];
+  const s=fredPayload?.series, d=fredPayload?.date||'9999-12-31';
+  if(s){
+    const t10=findVal(s,'T10Y3M',d);
+    if(t10!=null && t10<0) alerts.push({cls:'red',icon:'🔴',text:`<b>수익률 곡선 역전</b> — 10Y−3M ${t10.toFixed(2)}% (경기침체 시그널 주시)`});
+    else if(t10!=null && t10<0.2) alerts.push({cls:'amber',icon:'🟡',text:`<b>수익률 곡선 평탄</b> — 10Y−3M ${t10.toFixed(2)}%`});
+
+    const sv=findVal(s,'SOFR',d), iv=findVal(s,'IORB',d);
+    if(sv!=null && iv!=null){
+      const sp=sv-iv;
+      if(sp>0.05) alerts.push({cls:'red',icon:'🔴',text:`<b>단기 자금 스트레스</b> — SOFR−IORB +${sp.toFixed(3)}%`});
+    }
+
+    const ntfs=calcNTFS(s,d);
+    if(ntfs!=null){
+      if(ntfs>0.5) alerts.push({cls:'amber',icon:'📈',text:`<b>금리 인상 선반영</b> — NTFS ${ntfs.toFixed(3)}%`});
+      else if(ntfs<-0.5) alerts.push({cls:'green',icon:'📉',text:`<b>금리 인하 선반영</b> — NTFS ${ntfs.toFixed(3)}%`});
+    }
+  }
+  if(sentData?.fear_greed){
+    const fg=sentData.fear_greed.score;
+    if(fg>=80) alerts.push({cls:'amber',icon:'🔥',text:`<b>극도의 탐욕</b> — Fear &amp; Greed ${fg.toFixed(1)} (과열 경계)`});
+    else if(fg<=20) alerts.push({cls:'blue',icon:'🧊',text:`<b>극도의 공포</b> — Fear &amp; Greed ${fg.toFixed(1)} (역발상 기회 후보)`});
+  }
+
+  if(alerts.length===0){
+    box.innerHTML = `<div class="alert-none">특이 시그널 없음 — 정상 레인지</div>`;
+  } else {
+    box.innerHTML = alerts.map(a=>`<div class="alert-pill ${a.cls}"><span class="icon">${a.icon}</span><span>${a.text}</span></div>`).join('');
+  }
+}
+
+// ── 상태 업데이트 ──
+function updateStatus(fredPayload, sentData){
+  const el=document.getElementById('statusText');
+  const dates=[];
+  if(fredPayload?.date) dates.push('매크로 '+fredPayload.date);
+  if(sentData?.updated) dates.push('센티멘트 '+sentData.updated.slice(0,10));
+  el.textContent = dates.length ? '최신 ' + dates.join(' · ') : '데이터 없음';
+}
+
+// ── 부트스트랩 ──
+window._bootstrap = async function(){
+  // 두 스크립트 모두 로드될 때까지 (또는 타임아웃)
+  if(!(window._fredLoaded && window._sentLoaded)) return;
+  if(window._rendered) return;
+  window._rendered = true;
+
+  const fred = await decodeFred();
+  const sent = window.SENTIMENT_DATA || null;
+
+  renderAlerts(fred, sent);
+  renderKPIs(fred, sent);
+  updateStatus(fred, sent);
+};
+
+// 타임아웃 (둘 중 하나 실패 시 10초 후 있는 것만이라도 렌더)
+setTimeout(()=>{
+  if(window._rendered) return;
+  window._rendered = true;
+  (async()=>{
+    const fred = await decodeFred();
+    const sent = window.SENTIMENT_DATA || null;
+    if(!fred && !sent){
+      document.getElementById('statusText').textContent = '원본 데이터 응답 없음';
+      document.getElementById('kpiGrid').innerHTML = '<div class="placeholder" style="grid-column:1/-1;"><p>원본 레포 응답 없음. 잠시 후 새로고침해줘.</p></div>';
+      return;
+    }
+    renderAlerts(fred, sent);
+    renderKPIs(fred, sent);
+    updateStatus(fred, sent);
+  })();
+}, 10000);
+</script>
+
+</body>
+</html>
