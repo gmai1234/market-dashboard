@@ -243,12 +243,10 @@ function renderKPIs(fredPayload, sentData){
 
   // 3. 장단기차 (10Y-3M)
   if(fredPayload?.series){
-    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
-    const cur=findVal(s,'T10Y3M',d);
-    const e=findEntry(s,'T10Y3M',d);
-    // 1주 전 비교
-    const prev=(s.T10Y3M||[]).find(o=>o.date<=(e?.date||d) && o.date!==e?.date && (new Date(e.date)-new Date(o.date))>=7*86400000);
-    const prevV=prev?parseFloat(prev.value):null;
+    const s=fredPayload.series, sync=fredPayload.syncDate, prev=fredPayload.prevDate;
+    const cur=findVal(s,'T10Y3M',sync);
+    const e=findEntry(s,'T10Y3M',sync);
+    const prevV=findVal(s,'T10Y3M',prev);
     const diff=(cur!=null && prevV!=null)?cur-prevV:null;
     const ribbon = cur<0?'red':cur<0.2?'amber':'green';
     cards.push({
@@ -262,13 +260,13 @@ function renderKPIs(fredPayload, sentData){
 
   // 4. NTFS (선도지표)
   if(fredPayload?.series){
-    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
-    const cur=calcNTFS(s,d);
-    const e=findEntry(s,'DGS3MO',d);
-    const prev=(s.DGS3MO||[]).find(o=>o.date<=(e?.date||d) && o.date!==e?.date && (new Date(e.date)-new Date(o.date))>=7*86400000);
-    const prevV=prev?calcNTFS(s,prev.date):null;
+    const s=fredPayload.series, sync=fredPayload.syncDate, prev=fredPayload.prevDate;
+    const cur=calcNTFS(s,sync);
+    const e=findEntry(s,'DGS3MO',sync);
+    // 매크로 대시보드와 동일: prevDate의 DGS3MO 관측일을 NTFS 계산에 사용
+    const prevDgs=findEntry(s,'DGS3MO',prev);
+    const prevV=prevDgs?calcNTFS(s,prevDgs.date):null;
     const diff=(cur!=null && prevV!=null)?cur-prevV:null;
-    // NTFS > 0.5: 인상 압력 / < -0.5: 인하 선반영
     const ribbon = cur>0.5?'red':cur<-0.5?'green':'neutral';
     cards.push({
       label:'NTFS (선도지표)',src:'FRED',ribbon,
@@ -281,10 +279,10 @@ function renderKPIs(fredPayload, sentData){
 
   // 5. SOFR - IORB
   if(fredPayload?.series){
-    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
-    const sv=findVal(s,'SOFR',d), iv=findVal(s,'IORB',d);
+    const s=fredPayload.series, sync=fredPayload.syncDate;
+    const sv=findVal(s,'SOFR',sync), iv=findVal(s,'IORB',sync);
     const cur=(sv!=null && iv!=null)?sv-iv:null;
-    const e=findEntry(s,'SOFR',d);
+    const e=findEntry(s,'SOFR',sync);
     const ribbon = cur==null?'neutral':cur>0.05?'red':cur>0?'amber':'green';
     cards.push({
       label:'SOFR − IORB',src:'FRED',ribbon,
@@ -295,35 +293,32 @@ function renderKPIs(fredPayload, sentData){
     cards.push({label:'SOFR − IORB',src:'FRED',ribbon:'neutral',loading:true});
   }
 
-  // 6. 준비금 (WRESBAL) — 단위 $B
+  // 6. 준비금 (WRESBAL) — 단위 $B, 매크로와 동일하게 prevDate 대비
   if(fredPayload?.series){
-    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
-    const e=findEntry(s,'WRESBAL',d);
-    const v=findVal(s,'WRESBAL',d);
-    // 4주 전 비교
-    const prev=(s.WRESBAL||[]).find(o=>o.date<=(e?.date||d) && (new Date(e.date)-new Date(o.date))>=28*86400000);
-    const prevV=prev?parseFloat(prev.value):null;
+    const s=fredPayload.series, sync=fredPayload.syncDate, prev=fredPayload.prevDate;
+    const e=findEntry(s,'WRESBAL',sync);
+    const v=findVal(s,'WRESBAL',sync);
+    const prevV=findVal(s,'WRESBAL',prev);
     const diff=(v!=null && prevV!=null)?(v-prevV)/1000:null;
     cards.push({
       label:'준비금 (WRESBAL)',src:'FRED',ribbon:'neutral',
-      value:fmt(v!=null?v/1000:null,0,'$','B'),sub:'4주 전 대비',
+      value:fmt(v!=null?v/1000:null,0,'$','B'),sub:'전주 대비',
       change:chgEl(diff,0,'B'),date:e?.date||'–'
     });
   } else {
     cards.push({label:'준비금 (WRESBAL)',src:'FRED',ribbon:'neutral',loading:true});
   }
 
-  // 7. TGA (WDTGAL) — 단위 $B
+  // 7. TGA (WDTGAL) — 단위 $B, 매크로와 동일하게 prevDate 대비
   if(fredPayload?.series){
-    const s=fredPayload.series, d=fredPayload.date||'9999-12-31';
-    const e=findEntry(s,'WDTGAL',d);
-    const v=findVal(s,'WDTGAL',d);
-    const prev=(s.WDTGAL||[]).find(o=>o.date<=(e?.date||d) && (new Date(e.date)-new Date(o.date))>=28*86400000);
-    const prevV=prev?parseFloat(prev.value):null;
+    const s=fredPayload.series, sync=fredPayload.syncDate, prev=fredPayload.prevDate;
+    const e=findEntry(s,'WDTGAL',sync);
+    const v=findVal(s,'WDTGAL',sync);
+    const prevV=findVal(s,'WDTGAL',prev);
     const diff=(v!=null && prevV!=null)?(v-prevV)/1000:null;
     cards.push({
       label:'TGA (WDTGAL)',src:'FRED',ribbon:'neutral',
-      value:fmt(v!=null?v/1000:null,0,'$','B'),sub:'4주 전 대비',
+      value:fmt(v!=null?v/1000:null,0,'$','B'),sub:'전주 대비',
       change:chgEl(diff,0,'B'),date:e?.date||'–'
     });
   } else {
@@ -354,19 +349,19 @@ function renderKPIs(fredPayload, sentData){
 function renderAlerts(fredPayload, sentData){
   const box=document.getElementById('alertsBox');
   const alerts=[];
-  const s=fredPayload?.series, d=fredPayload?.date||'9999-12-31';
-  if(s){
-    const t10=findVal(s,'T10Y3M',d);
+  const s=fredPayload?.series, sync=fredPayload?.syncDate;
+  if(s && sync){
+    const t10=findVal(s,'T10Y3M',sync);
     if(t10!=null && t10<0) alerts.push({cls:'red',icon:'🔴',text:`<b>수익률 곡선 역전</b> — 10Y−3M ${t10.toFixed(2)}% (경기침체 시그널 주시)`});
     else if(t10!=null && t10<0.2) alerts.push({cls:'amber',icon:'🟡',text:`<b>수익률 곡선 평탄</b> — 10Y−3M ${t10.toFixed(2)}%`});
 
-    const sv=findVal(s,'SOFR',d), iv=findVal(s,'IORB',d);
+    const sv=findVal(s,'SOFR',sync), iv=findVal(s,'IORB',sync);
     if(sv!=null && iv!=null){
       const sp=sv-iv;
       if(sp>0.05) alerts.push({cls:'red',icon:'🔴',text:`<b>단기 자금 스트레스</b> — SOFR−IORB +${sp.toFixed(3)}%`});
     }
 
-    const ntfs=calcNTFS(s,d);
+    const ntfs=calcNTFS(s,sync);
     if(ntfs!=null){
       if(ntfs>0.5) alerts.push({cls:'amber',icon:'📈',text:`<b>금리 인상 선반영</b> — NTFS ${ntfs.toFixed(3)}%`});
       else if(ntfs<-0.5) alerts.push({cls:'green',icon:'📉',text:`<b>금리 인하 선반영</b> — NTFS ${ntfs.toFixed(3)}%`});
@@ -389,7 +384,7 @@ function renderAlerts(fredPayload, sentData){
 function updateStatus(fredPayload, sentData){
   const el=document.getElementById('statusText');
   const dates=[];
-  if(fredPayload?.date) dates.push('매크로 '+fredPayload.date);
+  if(fredPayload?.syncDate) dates.push('매크로 '+fredPayload.syncDate);
   if(sentData?.updated) dates.push('센티멘트 '+sentData.updated.slice(0,10));
   el.textContent = dates.length ? '최신 ' + dates.join(' · ') : '데이터 없음';
 }
