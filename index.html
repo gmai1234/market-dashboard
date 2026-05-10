@@ -204,6 +204,7 @@
   <button class="tab-btn" data-tab="macro" role="tab">매크로</button>
   <button class="tab-btn" data-tab="sentiment" role="tab">센티멘트</button>
   <button class="tab-btn" data-tab="fx" role="tab">환율</button>
+  <button class="tab-btn" data-tab="commodities" role="tab">원자재</button>
 </nav>
 
 <main>
@@ -362,6 +363,15 @@
     <div class="section-title" style="margin-top:24px;">암호화폐 (실시간)</div>
     <div id="fx-crypto-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
   </section>
+  <!-- 원자재 탭 -->
+  <section class="tab-panel" id="tab-commodities" hidden>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">
+      <span id="com-updated-time">데이터 로딩 중…</span>
+    </div>
+    <div id="com-sections"></div>
+  </section>
+
+
 
 <footer>
   <div>
@@ -1463,6 +1473,90 @@ window.addEventListener('resize',()=>{
   });
 
   if(window._fxLoaded) window._fxRender();
+})();
+</script>
+
+<!-- Commodities 모듈 -->
+<script src="https://gmai1234.github.io/commodities-dashboard/commodities_data.js" async onload="window._comLoaded=true;window._comRender&&window._comRender()"></script>
+<style>
+  #tab-commodities .com-cat-section{margin-bottom:22px;}
+  #tab-commodities .com-cat-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  #tab-commodities .com-cat-dot{width:8px;height:8px;border-radius:50%;}
+  #tab-commodities .com-cat-header h3{font-size:14px;font-weight:600;color:var(--sub);letter-spacing:.3px;margin:0;}
+  #tab-commodities .com-cat-count{font-size:11px;color:var(--muted);margin-left:auto;}
+  #tab-commodities .com-cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:1100px){#tab-commodities .com-cat-grid{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:768px){#tab-commodities .com-cat-grid{grid-template-columns:repeat(2,1fr);gap:10px;}}
+  @media(max-width:380px){#tab-commodities .com-cat-grid{grid-template-columns:1fr;}}
+</style>
+<script>
+(function(){
+  function pct(c,p){if(p==null||p==0||c==null)return null;return ((c-p)/p)*100;}
+  function findBefore(arr,d){if(!arr||!arr.length)return null;const t=new Date(arr[0].date),tg=new Date(t.getTime()-d*86400000),s=tg.toISOString().slice(0,10);for(const o of arr){if(o.date<=s)return o;}return arr[arr.length-1];}
+  function fmt(v,d){return v.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});}
+  function fmtPct(p){if(p==null||isNaN(p))return '—';return (p>=0?'+':'')+p.toFixed(2)+'%';}
+  const COLORS={precious:'#fbbf24',industrial:'#94a3b8',energy:'#fb923c',specialty:'#a78bfa'};
+  const DEC={GOLD:2,SILVER:2,COPPER:3,IRON:2,WTI:2,BRENT:2,NG:3,URANIUM:2};
+
+  window._comRender = function(){
+    if(!window.COMMODITIES_DATA) return;
+    const data = window.COMMODITIES_DATA;
+    const sectionsEl = document.getElementById('com-sections');
+    const updTime = document.getElementById('com-updated-time');
+    if(!sectionsEl) return;
+    sectionsEl.innerHTML='';
+
+    const cats = Object.entries(data.categories).sort((a,b)=>a[1].order-b[1].order);
+    for(const [catKey, catMeta] of cats){
+      const keys = Object.entries(data.metadata).filter(([k,m])=>m.category===catKey).map(([k,m])=>k);
+      if(!keys.length) continue;
+      const sec = document.createElement('div');
+      sec.className='com-cat-section';
+      sec.innerHTML = `
+        <div class="com-cat-header">
+          <span class="com-cat-dot" style="background:${COLORS[catKey]||'#60a5fa'};"></span>
+          <h3>${catMeta.label}</h3>
+          <span class="com-cat-count">${keys.length}개</span>
+        </div>
+        <div class="com-cat-grid"></div>
+      `;
+      const grid = sec.querySelector('.com-cat-grid');
+      for(const key of keys){
+        const series = data.series[key]||[];
+        const meta = data.metadata[key];
+        const c = document.createElement('div');
+        c.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;';
+        if(!series.length){
+          c.innerHTML=`<div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${meta.label}</div><div style="color:var(--muted);font-size:12px;">데이터 없음</div>`;
+          grid.appendChild(c); continue;
+        }
+        const latest = series[0];
+        const d1 = findBefore(series,1), d7 = findBefore(series,7), d30 = findBefore(series,30), d365 = findBefore(series,365);
+        const dec = DEC[key]||2;
+        c.innerHTML = `
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${meta.label}</div>
+          <div style="font-size:22px;font-weight:700;margin-bottom:6px;">${fmt(latest.value, dec)}</div>
+          <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;">
+            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1D </span><span style="color:${pct(latest.value,d1?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d1?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1W </span><span style="color:${pct(latest.value,d7?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d7?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1M </span><span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1Y </span><span style="color:${pct(latest.value,d365?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d365?.value))}</span></div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;display:flex;justify-content:space-between;"><span>${latest.date}</span><span style="padding:1px 5px;border-radius:3px;border:1px solid var(--border);">${meta.source.toUpperCase()}</span></div>
+        `;
+        grid.appendChild(c);
+      }
+      sectionsEl.appendChild(sec);
+    }
+    const ts = data.collected_at?new Date(data.collected_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'?';
+    updTime.textContent = `수집: ${ts}`;
+  };
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(btn.dataset.tab==='commodities') setTimeout(()=>window._comRender&&window._comRender(),50);
+    });
+  });
+  if(window._comLoaded) window._comRender();
 })();
 </script>
 </body>
