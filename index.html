@@ -1369,6 +1369,16 @@ function updateStatus(fredPayload, sentData){
 // ══════════════════════════════════════════════════════════
 // 부트스트랩
 // ══════════════════════════════════════════════════════════
+window._refreshOverview = function(){
+  // _bootstrap 의 _rendered 가드 우회 — fx·com·crypto ready 후 renderKPIs 다시 호출
+  if(!window._rendered){
+    // _bootstrap 아직 안 됐으면 retry
+    setTimeout(window._refreshOverview, 100);
+    return;
+  }
+  renderKPIs(window._macroPayload || null, window.SENTIMENT_DATA || null);
+};
+
 window._bootstrap = async function(){
   if(!(window._fredLoaded && window._sentLoaded)) return;
   if(window._rendered) return;
@@ -1428,7 +1438,7 @@ window.addEventListener('resize',()=>{
 
 
 <!-- FX 모듈 (외부 데이터 fetch + 자체 render) -->
-<script src="https://gmai1234.github.io/fx-dashboard/fx_data.js" async onload="window._fxLoaded=true;window._fxRender&&window._fxRender();window._bootstrap&&window._bootstrap()"></script>
+<script src="https://gmai1234.github.io/fx-dashboard/fx_data.js" async onload="window._fxLoaded=true;window._fxRender&&window._fxRender();window._bootstrap&&window._bootstrap();window._refreshOverview&&window._refreshOverview()"></script>
 <script>
 (function(){
   function pct(c,p){if(p==null||p==0||c==null)return null;return ((c-p)/p)*100;}
@@ -1530,7 +1540,7 @@ window.addEventListener('resize',()=>{
 </script>
 
 <!-- Commodities 모듈 -->
-<script src="https://gmai1234.github.io/commodities-dashboard/commodities_data.js" async onload="window._comLoaded=true;window._comRender&&window._comRender();window._bootstrap&&window._bootstrap()"></script>
+<script src="https://gmai1234.github.io/commodities-dashboard/commodities_data.js" async onload="window._comLoaded=true;window._comRender&&window._comRender();window._bootstrap&&window._bootstrap();window._refreshOverview&&window._refreshOverview()"></script>
 <style>
   #tab-commodities .com-cat-section{margin-bottom:22px;}
   #tab-commodities .com-cat-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
@@ -1646,6 +1656,7 @@ window._fetchCryptoHistory = async function(id, days){
     const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true');
     window._cryptoData = await r.json();
     window._bootstrap && window._bootstrap();
+    window._refreshOverview && window._refreshOverview();
   }catch(e){ console.warn('Overview crypto fetch:', e); }
 })();
 </script>
