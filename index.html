@@ -353,11 +353,14 @@
 
   <!-- 환율 탭 -->
   <section class="tab-panel" id="tab-fx" hidden>
-    <div class="section-title">환율 (FRED 일별) + 암호화폐 (실시간)</div>
+    <div class="section-title">환율 (FRED 일별)</div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">
       <span id="fx-updated-time">데이터 로딩 중…</span>
     </div>
-    <div id="fx-cards" class="kpi-grid"></div>
+    <div id="fx-fiat-cards" class="kpi-grid"></div>
+
+    <div class="section-title" style="margin-top:24px;">암호화폐 (실시간)</div>
+    <div id="fx-crypto-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
   </section>
 
 <footer>
@@ -1393,10 +1396,12 @@ window.addEventListener('resize',()=>{
   }
 
   window._fxRender = async function(){
-    const cards = document.getElementById('fx-cards');
+    const fiatEl = document.getElementById('fx-fiat-cards');
+    const cryptoEl = document.getElementById('fx-crypto-cards');
     const updTime = document.getElementById('fx-updated-time');
-    if(!cards) return;
-    cards.innerHTML='';
+    if(!fiatEl || !cryptoEl) return;
+    fiatEl.innerHTML='';
+    cryptoEl.innerHTML='';
 
     if(window.FX_DATA){
       const data = window.FX_DATA;
@@ -1422,7 +1427,7 @@ window.addEventListener('resize',()=>{
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">최신: ${latest.date}</div>
         `;
-        cards.appendChild(c);
+        fiatEl.appendChild(c);
       }
       const ts = data.collected_at?new Date(data.collected_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'?';
       updTime.textContent = `FRED 수집: ${ts} · BTC/ETH: 실시간 (페이지 로드 시점)`;
@@ -1432,8 +1437,8 @@ window.addEventListener('resize',()=>{
 
     await fetchCrypto();
     if(cryptoData){
-      const cryptoCards = [{key:'bitcoin', label:'BTC/USD'},{key:'ethereum', label:'ETH/USD'}];
-      for(const cc of cryptoCards){
+      const items = [{key:'bitcoin', label:'BTC/USD'},{key:'ethereum', label:'ETH/USD'}];
+      for(const cc of items){
         const d = cryptoData[cc.key];
         if(!d) continue;
         const c = document.createElement('div');
@@ -1446,7 +1451,7 @@ window.addEventListener('resize',()=>{
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">CoinGecko</div>
         `;
-        cards.appendChild(c);
+        cryptoEl.appendChild(c);
       }
     }
   };
