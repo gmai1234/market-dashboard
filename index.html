@@ -683,6 +683,52 @@ function renderKPIs(fredPayload, sentData){
     });
   }
 
+  // === 환율 5 카드 (DXY · USD/KRW · EUR/USD · BTC · ETH) ===
+  const fx = window.FX_DATA;
+  const cryp = window._cryptoData;
+  const fxCards = [
+    {key:'DXY',     label:'DXY',     src:'FRED', dec:2, sub:'Broad USD Index'},
+    {key:'USD_KRW', label:'USD/KRW', src:'FRED', dec:2, sub:'1 USD = X KRW'},
+    {key:'EUR_USD', label:'EUR/USD', src:'FRED', dec:4, sub:'1 EUR = X USD'},
+  ];
+  for(const fc of fxCards){
+    if(fx?.series?.[fc.key]?.length){
+      const s = fx.series[fc.key];
+      const lat = s[0], pv = s[1]?.value;
+      const diff = (pv!=null) ? lat.value - pv : null;
+      cards.push({label:fc.label, src:fc.src, ribbon:'neutral', value:fmt(lat.value, fc.dec), sub:fc.sub, change:chgEl(diff, fc.dec), date:lat.date});
+    } else cards.push({label:fc.label, src:fc.src, ribbon:'neutral', loading:true});
+  }
+  // BTC
+  if(cryp?.bitcoin?.usd!=null){
+    const v=cryp.bitcoin.usd, ch=cryp.bitcoin.usd_24h_change;
+    const ribbon = ch>5?'amber':ch<-5?'red':'neutral';
+    cards.push({label:'BTC/USD', src:'CoinGecko', ribbon, value:'$'+fmt(v,0), sub:'24h 변동', change:chgEl(ch,2,'%'), date:'실시간'});
+  } else cards.push({label:'BTC/USD', src:'CoinGecko', ribbon:'neutral', loading:true});
+  // ETH
+  if(cryp?.ethereum?.usd!=null){
+    const v=cryp.ethereum.usd, ch=cryp.ethereum.usd_24h_change;
+    const ribbon = ch>5?'amber':ch<-5?'red':'neutral';
+    cards.push({label:'ETH/USD', src:'CoinGecko', ribbon, value:'$'+fmt(v,2), sub:'24h 변동', change:chgEl(ch,2,'%'), date:'실시간'});
+  } else cards.push({label:'ETH/USD', src:'CoinGecko', ribbon:'neutral', loading:true});
+
+  // === 원자재 4 카드 (Gold · WTI · Copper · Uranium) ===
+  const com = window.COMMODITIES_DATA;
+  const comCards = [
+    {key:'GOLD',    label:'Gold',           src:'Yahoo', dec:2, prefix:'$',  sub:'XAU/USD'},
+    {key:'WTI',     label:'WTI Crude',      src:'FRED',  dec:2, prefix:'$',  sub:'$/bbl'},
+    {key:'COPPER',  label:'Copper',         src:'Yahoo', dec:3, prefix:'$',  sub:'$/lb (HG=F)'},
+    {key:'URANIUM', label:'Uranium (URA)',  src:'Yahoo', dec:2, prefix:'$',  sub:'ETF proxy'},
+  ];
+  for(const cc of comCards){
+    if(com?.series?.[cc.key]?.length){
+      const s = com.series[cc.key];
+      const lat = s[0], pv = s[1]?.value;
+      const diff = (pv!=null) ? lat.value - pv : null;
+      cards.push({label:cc.label, src:cc.src, ribbon:'neutral', value:cc.prefix+fmt(lat.value,cc.dec), sub:cc.sub, change:chgEl(diff,cc.dec), date:lat.date});
+    } else cards.push({label:cc.label, src:cc.src, ribbon:'neutral', loading:true});
+  }
+
   grid.innerHTML = cards.map(c=>{
     if(c.loading){
       return `<div class="kpi"><span class="kpi-ribbon ${c.ribbon||'neutral'}"></span>
@@ -1382,7 +1428,7 @@ window.addEventListener('resize',()=>{
 
 
 <!-- FX 모듈 (외부 데이터 fetch + 자체 render) -->
-<script src="https://gmai1234.github.io/fx-dashboard/fx_data.js" async onload="window._fxLoaded=true;window._fxRender&&window._fxRender()"></script>
+<script src="https://gmai1234.github.io/fx-dashboard/fx_data.js" async onload="window._fxLoaded=true;window._fxRender&&window._fxRender();window._bootstrap&&window._bootstrap()"></script>
 <script>
 (function(){
   function pct(c,p){if(p==null||p==0||c==null)return null;return ((c-p)/p)*100;}
@@ -1436,7 +1482,7 @@ window.addEventListener('resize',()=>{
             <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1M </span><span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">최신: ${latest.date}</div>
-          <canvas id="spark-fiat-${key}" style="width:100%;height:50px;margin-top:8px;"></canvas>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-fiat-${key}"></canvas></div>
         `;
         fiatEl.appendChild(c);
         setTimeout(()=>window._drawSpark(`spark-fiat-${key}`, series, '#60a5fa'), 10);
@@ -1462,7 +1508,7 @@ window.addEventListener('resize',()=>{
             <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">24H </span><span style="color:${(d.usd_24h_change||0)>=0?'#22c55e':'#ef4444'};">${fmtPct(d.usd_24h_change)}</span></div>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">CoinGecko</div>
-          <canvas id="spark-crypto-${cc.key}" style="width:100%;height:50px;margin-top:8px;"></canvas>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-crypto-${cc.key}"></canvas></div>
         `;
         cryptoEl.appendChild(c);
         // historical fetch + sparkline (async)
@@ -1484,7 +1530,7 @@ window.addEventListener('resize',()=>{
 </script>
 
 <!-- Commodities 모듈 -->
-<script src="https://gmai1234.github.io/commodities-dashboard/commodities_data.js" async onload="window._comLoaded=true;window._comRender&&window._comRender()"></script>
+<script src="https://gmai1234.github.io/commodities-dashboard/commodities_data.js" async onload="window._comLoaded=true;window._comRender&&window._comRender();window._bootstrap&&window._bootstrap()"></script>
 <style>
   #tab-commodities .com-cat-section{margin-bottom:22px;}
   #tab-commodities .com-cat-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
@@ -1550,7 +1596,7 @@ window.addEventListener('resize',()=>{
             <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1Y </span><span style="color:${pct(latest.value,d365?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d365?.value))}</span></div>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;display:flex;justify-content:space-between;"><span>${latest.date}</span><span style="padding:1px 5px;border-radius:3px;border:1px solid var(--border);">${meta.source.toUpperCase()}</span></div>
-          <canvas id="spark-com-${key}" style="width:100%;height:50px;margin-top:8px;"></canvas>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-com-${key}"></canvas></div>
         `;
         grid.appendChild(c);
         setTimeout(()=>window._drawSpark(`spark-com-${key}`, series, COLORS[catKey]||'#60a5fa'), 10);
@@ -1592,6 +1638,16 @@ window._fetchCryptoHistory = async function(id, days){
     return d.prices.map(([ts, p]) => ({date: new Date(ts).toISOString().slice(0,10), value: p}));
   }catch(e){ console.warn('CoinGecko history failed:', e); return null; }
 };
+</script>
+<!-- 종합 탭용 BTC/ETH 페이지 로드 fetch (renderKPIs 가 window._cryptoData 참조) -->
+<script>
+(async()=>{
+  try{
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true');
+    window._cryptoData = await r.json();
+    window._bootstrap && window._bootstrap();
+  }catch(e){ console.warn('Overview crypto fetch:', e); }
+})();
 </script>
 </body>
 </html>
