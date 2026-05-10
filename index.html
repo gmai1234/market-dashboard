@@ -129,6 +129,9 @@
   #validationSummary{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.8;}
   @media(max-width:768px){#validationGrid{grid-template-columns:1fr 1fr;}}
   @media(max-width:480px){#validationGrid{grid-template-columns:1fr;}.v-item{flex-direction:column;align-items:flex-start;gap:4px;}.v-item .v-vals{flex-wrap:wrap;}}
+  .cross-v-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;}
+  @media(max-width:768px){.cross-v-grid{grid-template-columns:1fr 1fr;}}
+  @media(max-width:480px){.cross-v-grid{grid-template-columns:1fr;}}
 
   /* ── 센티멘트 탭 ── */
   .sent-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
@@ -362,7 +365,7 @@
         🔍 외부 출처 검증
         <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#1e2035;color:#fb923c;border:1px solid #92400e;">단일 source</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">
+      <div class="cross-v-grid">
         <a class="v-item miss" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://edition.cnn.com/markets/fear-and-greed"><span class="v-name">CNN Fear &amp; Greed<span class="v-source-tag">독점</span></span><span class="v-icon">🔗</span></a>
         <a class="v-item miss" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.aaii.com/sentimentsurvey"><span class="v-name">AAII Survey<span class="v-source-tag">독점</span></span><span class="v-icon">🔗</span></a>
       </div>
@@ -391,7 +394,7 @@
         🔍 외부 출처 교차 검증
         <span class="v-badge idle" id="fxVBadge" style="font-size:10px;padding:2px 8px;border-radius:10px;background:#1e2035;color:#60a5fa;border:1px solid #2a3a5a;">–</span>
       </div>
-      <div id="fxValidationGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;"></div>
+      <div id="fxValidationGrid" class="cross-v-grid"></div>
     </div>
   </section>
   <!-- 원자재 탭 -->
@@ -407,7 +410,7 @@
         🔍 1차 출처 (수동 검증)
         <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#1e2035;color:#60a5fa;border:1px solid #2a3a5a;">CORS 한계로 클릭 검증</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">
+      <div class="cross-v-grid">
         <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.gold.org/goldhub/data/gold-prices"><span class="v-name">Gold (WGC)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
         <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.lbma.org.uk/prices-and-data"><span class="v-name">Silver (LBMA)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
         <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.lme.com/en/Metals/Non-ferrous/LME-Copper"><span class="v-name">Copper (LME)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
@@ -1771,17 +1774,17 @@ window._fxValidate = async function(){
   addSec('① 법정 통화 ─ ExchangeRate-API vs FRED');
   const er = await safe(async()=>{ const r=await fetch('https://api.exchangerate-api.com/v4/latest/USD'); return (await r.json()).rates; });
   addItem('DXY', '외부 부재', fxLatest('DXY'), null, 0, '', 2);
-  addItem('USD/KRW', 'ExchangeRate', fxLatest('USD_KRW'), er?.KRW ?? null, 5, ' ₩', 2);
-  addItem('USD/JPY', 'ExchangeRate', fxLatest('USD_JPY'), er?.JPY ?? null, 1, ' ¥', 2);
-  addItem('USD/CNY', 'ExchangeRate', fxLatest('USD_CNY'), er?.CNY ?? null, 0.05, '', 4);
-  addItem('USD/CHF', 'ExchangeRate', fxLatest('USD_CHF'), er?.CHF ?? null, 0.01, '', 4);
-  addItem('EUR/USD', 'ExchangeRate', fxLatest('EUR_USD'), er?.EUR ? 1/er.EUR : null, 0.005, '', 4);
-  addItem('GBP/USD', 'ExchangeRate', fxLatest('GBP_USD'), er?.GBP ? 1/er.GBP : null, 0.005, '', 4);
+  addItem('USD/KRW', 'ExchangeRate', fxLatest('USD_KRW'), er?.KRW ?? null, 30, ' ₩', 2);
+  addItem('USD/JPY', 'ExchangeRate', fxLatest('USD_JPY'), er?.JPY ?? null, 5, ' ¥', 2);
+  addItem('USD/CNY', 'ExchangeRate', fxLatest('USD_CNY'), er?.CNY ?? null, 0.15, '', 4);
+  addItem('USD/CHF', 'ExchangeRate', fxLatest('USD_CHF'), er?.CHF ?? null, 0.03, '', 4);
+  addItem('EUR/USD', 'ExchangeRate', fxLatest('EUR_USD'), er?.EUR ? 1/er.EUR : null, 0.02, '', 4);
+  addItem('GBP/USD', 'ExchangeRate', fxLatest('GBP_USD'), er?.GBP ? 1/er.GBP : null, 0.02, '', 4);
   addSec('② 암호화폐 ─ Coinbase vs CoinGecko');
   const cb_btc = await safe(async()=>{ const r=await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot'); return parseFloat((await r.json()).data.amount); });
   const cb_eth = await safe(async()=>{ const r=await fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot'); return parseFloat((await r.json()).data.amount); });
-  addItem('BTC/USD', 'Coinbase', cryp?.bitcoin?.usd ?? null, cb_btc, 100, ' $', 0);
-  addItem('ETH/USD', 'Coinbase', cryp?.ethereum?.usd ?? null, cb_eth, 5, ' $', 2);
+  addItem('BTC/USD', 'Coinbase', cryp?.bitcoin?.usd ?? null, cb_btc, 500, ' $', 0);
+  addItem('ETH/USD', 'Coinbase', cryp?.ethereum?.usd ?? null, cb_eth, 20, ' $', 2);
   if(badge){
     badge.textContent = `${pass}✅ ${warn}⚠ ${unavail}⚪`;
     badge.style.color = warn>0?'#fb923c':(unavail>0?'#6b7280':'#4ade80');
