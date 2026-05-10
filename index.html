@@ -203,6 +203,7 @@
   <button class="tab-btn active" data-tab="overview" role="tab">종합</button>
   <button class="tab-btn" data-tab="macro" role="tab">매크로</button>
   <button class="tab-btn" data-tab="sentiment" role="tab">센티멘트</button>
+  <button class="tab-btn" data-tab="fx" role="tab">환율</button>
 </nav>
 
 <main>
@@ -348,6 +349,16 @@
     <div id="signal-box" class="signal-box">데이터 로딩 중…</div>
   </section>
 </main>
+
+
+  <!-- 환율 탭 -->
+  <section class="tab-panel" id="tab-fx" hidden>
+    <div class="section-title">환율 (FRED 일별) + 암호화폐 (실시간)</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">
+      <span id="fx-updated-time">데이터 로딩 중…</span>
+    </div>
+    <div id="fx-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;"></div>
+  </section>
 
 <footer>
   <div>
@@ -1356,5 +1367,98 @@ window.addEventListener('resize',()=>{
 });
 </script>
 
+
+<!-- FX 모듈 (외부 데이터 fetch + 자체 render) -->
+<script src="https://gmai1234.github.io/fx-dashboard/fx_data.js" async onload="window._fxLoaded=true;window._fxRender&&window._fxRender()"></script>
+<script>
+(function(){
+  function pct(c,p){if(p==null||p==0||c==null)return null;return ((c-p)/p)*100;}
+  function findValueAtOrBefore(arr, daysBack){
+    if(!arr||!arr.length)return null;
+    const today=new Date(arr[0].date);
+    const target=new Date(today.getTime()-daysBack*86400000);
+    const targetStr=target.toISOString().slice(0,10);
+    for(const o of arr){if(o.date<=targetStr)return o;}
+    return arr[arr.length-1];
+  }
+  function fmt(v,d){return v.toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});}
+  function fmtPct(p){if(p==null||isNaN(p))return '—';return (p>=0?'+':'')+p.toFixed(2)+'%';}
+
+  let cryptoData = null;
+  async function fetchCrypto(){
+    try{
+      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true');
+      cryptoData = await r.json();
+    }catch(e){ console.warn('CoinGecko fetch failed:', e); }
+  }
+
+  window._fxRender = async function(){
+    const cards = document.getElementById('fx-cards');
+    const updTime = document.getElementById('fx-updated-time');
+    if(!cards) return;
+    cards.innerHTML='';
+
+    if(window.FX_DATA){
+      const data = window.FX_DATA;
+      const order = ['DXY','USD_KRW','USD_JPY','USD_CNY','USD_CHF','EUR_USD','GBP_USD'];
+      const decimals = {'DXY':2,'USD_KRW':2,'USD_JPY':2,'USD_CNY':4,'USD_CHF':4,'EUR_USD':4,'GBP_USD':4};
+      for(const key of order){
+        const series = data.series[key]||[];
+        const meta = data.metadata[key]||{label:key};
+        if(!series.length) continue;
+        const latest = series[0];
+        const d1 = findValueAtOrBefore(series,1);
+        const d7 = findValueAtOrBefore(series,7);
+        const d30 = findValueAtOrBefore(series,30);
+        const c = document.createElement('div');
+        c.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;';
+        c.innerHTML = `
+          <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase;">${meta.label}</div>
+          <div style="font-size:22px;font-weight:700;margin-bottom:6px;">${fmt(latest.value,decimals[key]||2)}</div>
+          <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;">
+            <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1D </span><span style="color:${pct(latest.value,d1?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d1?.value))}</span></div>
+            <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1W </span><span style="color:${pct(latest.value,d7?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d7?.value))}</span></div>
+            <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1M </span><span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;">최신: ${latest.date}</div>
+        `;
+        cards.appendChild(c);
+      }
+      const ts = data.collected_at?new Date(data.collected_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'?';
+      updTime.textContent = `FRED 수집: ${ts} · BTC/ETH: 실시간 (페이지 로드 시점)`;
+    } else {
+      updTime.textContent = 'FRED 데이터 로딩 실패 — fx-dashboard 첫 빌드 대기 중일 수 있음';
+    }
+
+    await fetchCrypto();
+    if(cryptoData){
+      const cryptoCards = [{key:'bitcoin', label:'BTC/USD'},{key:'ethereum', label:'ETH/USD'}];
+      for(const cc of cryptoCards){
+        const d = cryptoData[cc.key];
+        if(!d) continue;
+        const c = document.createElement('div');
+        c.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;';
+        c.innerHTML = `
+          <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase;">${cc.label} <span style="color:#f59e0b;font-size:9px;">⚡ LIVE</span></div>
+          <div style="font-size:22px;font-weight:700;margin-bottom:6px;">$${fmt(d.usd,2)}</div>
+          <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;">
+            <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">24H </span><span style="color:${(d.usd_24h_change||0)>=0?'#22c55e':'#ef4444'};">${fmtPct(d.usd_24h_change)}</span></div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;">CoinGecko</div>
+        `;
+        cards.appendChild(c);
+      }
+    }
+  };
+
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(btn.dataset.tab==='fx') setTimeout(()=>window._fxRender&&window._fxRender(),50);
+    });
+  });
+
+  if(window._fxLoaded) window._fxRender();
+})();
+</script>
 </body>
 </html>
