@@ -1580,7 +1580,7 @@ window.addEventListener('resize',()=>{
             <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1M </span><span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">최신: ${latest.date}</div>
-          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-fiat-${key}"></canvas></div>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-fiat-${key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">90일</div></div>
         `;
         fiatEl.appendChild(c);
         setTimeout(()=>window._drawSpark(`spark-fiat-${key}`, series, '#60a5fa'), 10);
@@ -1606,7 +1606,7 @@ window.addEventListener('resize',()=>{
             <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">24H </span><span style="color:${(d.usd_24h_change||0)>=0?'#22c55e':'#ef4444'};">${fmtPct(d.usd_24h_change)}</span></div>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">CoinGecko</div>
-          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-crypto-${cc.key}"></canvas></div>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-crypto-${cc.key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">90일</div></div>
         `;
         cryptoEl.appendChild(c);
         // historical fetch + sparkline (async)
@@ -1694,7 +1694,7 @@ window.addEventListener('resize',()=>{
             <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1Y </span><span style="color:${pct(latest.value,d365?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d365?.value))}</span></div>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;display:flex;justify-content:space-between;"><span>${latest.date}</span><span style="padding:1px 5px;border-radius:3px;border:1px solid var(--border);">${meta.source.toUpperCase()}</span></div>
-          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-com-${key}"></canvas></div>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-com-${key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">90일</div></div>
         `;
         grid.appendChild(c);
         setTimeout(()=>window._drawSpark(`spark-com-${key}`, series, COLORS[catKey]||'#60a5fa'), 10);
