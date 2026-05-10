@@ -129,9 +129,15 @@
   #validationSummary{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.8;}
   @media(max-width:768px){#validationGrid{grid-template-columns:1fr 1fr;}}
   @media(max-width:480px){#validationGrid{grid-template-columns:1fr;}.v-item{flex-direction:column;align-items:flex-start;gap:4px;}.v-item .v-vals{flex-wrap:wrap;}}
-  .cross-v-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;}
-  @media(max-width:768px){.cross-v-grid{grid-template-columns:1fr 1fr;}}
+  /* 종합 탭 카드 (.kpi-grid) 와 동일 4-3-2 미디어쿼리 — 가로 폭 일관성 */
+  .cross-v-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  @media(max-width:1100px){.cross-v-grid{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:768px){.cross-v-grid{grid-template-columns:repeat(2,1fr);gap:6px;}}
   @media(max-width:480px){.cross-v-grid{grid-template-columns:1fr;}}
+  /* 좁은 v-item 안 텍스트 줄바꿈을 위해 column stack */
+  .cross-v-grid .v-item{flex-direction:column;align-items:flex-start;gap:4px;}
+  .cross-v-grid .v-item .v-vals{flex-wrap:wrap;font-size:11px;}
+  .cross-v-grid .v-item .v-name{min-width:0;width:100%;}
 
   /* ── 센티멘트 탭 ── */
   .sent-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
@@ -1773,7 +1779,6 @@ window._fxValidate = async function(){
   const fxLatest = key => fx.series?.[key]?.[0]?.value ?? null;
   addSec('① 법정 통화 ─ ExchangeRate-API vs FRED');
   const er = await safe(async()=>{ const r=await fetch('https://api.exchangerate-api.com/v4/latest/USD'); return (await r.json()).rates; });
-  addItem('DXY', '외부 부재', fxLatest('DXY'), null, 0, '', 2);
   addItem('USD/KRW', 'ExchangeRate', fxLatest('USD_KRW'), er?.KRW ?? null, 30, ' ₩', 2);
   addItem('USD/JPY', 'ExchangeRate', fxLatest('USD_JPY'), er?.JPY ?? null, 5, ' ¥', 2);
   addItem('USD/CNY', 'ExchangeRate', fxLatest('USD_CNY'), er?.CNY ?? null, 0.15, '', 4);
