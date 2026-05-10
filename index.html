@@ -138,6 +138,8 @@
   .cross-v-grid .v-item{flex-direction:column;align-items:flex-start;gap:4px;}
   .cross-v-grid .v-item .v-vals{flex-wrap:wrap;font-size:11px;}
   .cross-v-grid .v-item .v-name{min-width:0;width:100%;}
+  /* 환율 fiat 카드 모바일 1열 (종합 탭 .kpi-grid 는 그대로) */
+  @media(max-width:480px){#fx-fiat-cards.kpi-grid{grid-template-columns:1fr;}}
 
   /* ── 센티멘트 탭 ── */
   .sent-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
@@ -1630,7 +1632,7 @@ window.addEventListener('resize',()=>{
   #tab-commodities .com-cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
   @media(max-width:1100px){#tab-commodities .com-cat-grid{grid-template-columns:repeat(3,1fr);}}
   @media(max-width:768px){#tab-commodities .com-cat-grid{grid-template-columns:repeat(2,1fr);gap:10px;}}
-  @media(max-width:380px){#tab-commodities .com-cat-grid{grid-template-columns:1fr;}}
+  @media(max-width:480px){#tab-commodities .com-cat-grid{grid-template-columns:1fr;}}
 </style>
 <script>
 (function(){
