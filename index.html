@@ -818,7 +818,7 @@ function renderKPIs(fredPayload, sentData){
         <div class="kpi-head"><div class="kpi-label">${c.label}</div><span class="kpi-src">${c.src}</span></div>
         <div class="kpi-value loading">로딩 중…</div></div>`;
     }
-    const sparkHTML = (c.series && c.series.length) ? `<div style="height:30px;margin-top:6px;position:relative;"><canvas id="ov-spark-${idx}"></canvas></div>` : '';
+    const sparkHTML = (c.series && c.series.length) ? `<div style="height:30px;margin-top:6px;position:relative;"><canvas id="ov-spark-${idx}"></canvas><div style="position:absolute;top:0;right:2px;font-size:8px;color:var(--muted);opacity:0.6;">90일</div></div>` : '';
     return `<div class="kpi"><span class="kpi-ribbon ${c.ribbon||'neutral'}"></span>
       <div class="kpi-head"><div class="kpi-label">${c.label}</div><span class="kpi-src">${c.src}</span></div>
       <div class="kpi-value">${c.value}</div>
