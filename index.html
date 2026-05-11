@@ -688,7 +688,7 @@ function renderKPIs(fredPayload, sentData){
     const score=fg.score, prevScore=fg.previous_close, diff=score-prevScore;
     const ratingKo={'extreme fear':'극도의 공포','fear':'공포','neutral':'중립','greed':'탐욕','extreme greed':'극도의 탐욕'}[fg.rating]||fg.rating;
     const ribbon = score<=25?'blue':score<=45?'neutral':score<=55?'neutral':score<=75?'amber':'red';
-    cards.push({label:'Fear &amp; Greed',src:'CNN',ribbon,value:fmt(score,1),sub:ratingKo,change:chgEl(diff,1),date:(fg.timestamp||'').slice(0,10)});
+    cards.push({label:'Fear &amp; Greed',src:'CNN',ribbon,value:fmt(score,1),sub:ratingKo,change:chgEl(diff,1),date:(fg.timestamp||'').slice(0,10),series:(fg.history||[]).map(o=>({date:o.date,value:o.score}))});
   } else {
     cards.push({label:'Fear &amp; Greed',src:'CNN',ribbon:'neutral',loading:true});
   }
@@ -700,7 +700,7 @@ function renderKPIs(fredPayload, sentData){
     const prevSpread=hist.length>0 ? hist[hist.length-2]?.spread ?? hist[hist.length-1]?.spread : null;
     const diff=(prevSpread!=null)?L.spread-prevSpread:null;
     const ribbon = L.spread<-15?'blue':L.spread>20?'amber':'green';
-    cards.push({label:'AAII Bull-Bear',src:'AAII',ribbon,value:(L.spread>=0?'+':'')+L.spread+'%',sub:`B ${L.bullish}%  /  B ${L.bearish}%`,change:(diff!=null)?chgEl(diff,0,'%p'):'',date:L.date});
+    cards.push({label:'AAII Bull-Bear',src:'AAII',ribbon,value:(L.spread>=0?'+':'')+L.spread+'%',sub:`B ${L.bullish}%  /  B ${L.bearish}%`,change:(diff!=null)?chgEl(diff,0,'%p'):'',date:L.date,series:(hist||[]).map(o=>({date:o.date_||o.date,value:parseFloat(o.spread)})).filter(o=>!isNaN(o.value))});
   } else {
     cards.push({label:'AAII Bull-Bear',src:'AAII',ribbon:'neutral',loading:true});
   }
@@ -728,7 +728,12 @@ function renderKPIs(fredPayload, sentData){
     const cur3=(sv!=null && iv!=null)?sv-iv:null;
     const e3=findEntry('SOFR',sync);
     const ribbon3 = cur3==null?'neutral':cur3>0.05?'red':cur3>0?'amber':'green';
-    cards.push({label:'SOFR − IORB',src:'FRED',ribbon:ribbon3,value:fmt(cur3,3,'','%'),sub:cur3==null?'–':cur3>0.05?'자금 스트레스':cur3>0?'소폭 상회':'정상',date:e3?.date||'–'});
+    // SOFR-IORB historical 시계열 (같은 날짜 차분)
+    const sofrArr = fetched['SOFR']||[];
+    const iorbMap = {};
+    for(const o of (fetched['IORB']||[])) iorbMap[o.date] = o.value;
+    const spreadSeries = sofrArr.filter(o=>iorbMap[o.date]!=null).map(o=>({date:o.date, value:o.value-iorbMap[o.date]}));
+    cards.push({label:'SOFR − IORB',src:'FRED',ribbon:ribbon3,value:fmt(cur3,3,'','%'),sub:cur3==null?'–':cur3>0.05?'자금 스트레스':cur3>0?'소폭 상회':'정상',date:e3?.date||'–',series:spreadSeries});
 
     // 6. 준비금 (WRESBAL)
     const eR=findEntry('WRESBAL',sync);
@@ -769,13 +774,13 @@ function renderKPIs(fredPayload, sentData){
   if(cryp?.bitcoin?.usd!=null){
     const v=cryp.bitcoin.usd, ch=cryp.bitcoin.usd_24h_change;
     const ribbon = ch>5?'amber':ch<-5?'red':'neutral';
-    cards.push({label:'BTC/USD', src:'CoinGecko', ribbon, value:'$'+fmt(v,0), sub:'24h 변동', change:chgEl(ch,2,'%'), date:'실시간'});
+    cards.push({label:'BTC/USD', src:'CoinGecko', ribbon, value:'$'+fmt(v,0), sub:'24h 변동', change:chgEl(ch,2,'%'), date:'실시간', series:(window._cryptoHistory?.bitcoin)||[]});
   } else cards.push({label:'BTC/USD', src:'CoinGecko', ribbon:'neutral', loading:true});
   // ETH
   if(cryp?.ethereum?.usd!=null){
     const v=cryp.ethereum.usd, ch=cryp.ethereum.usd_24h_change;
     const ribbon = ch>5?'amber':ch<-5?'red':'neutral';
-    cards.push({label:'ETH/USD', src:'CoinGecko', ribbon, value:'$'+fmt(v,2), sub:'24h 변동', change:chgEl(ch,2,'%'), date:'실시간'});
+    cards.push({label:'ETH/USD', src:'CoinGecko', ribbon, value:'$'+fmt(v,2), sub:'24h 변동', change:chgEl(ch,2,'%'), date:'실시간', series:(window._cryptoHistory?.ethereum)||[]});
   } else cards.push({label:'ETH/USD', src:'CoinGecko', ribbon:'neutral', loading:true});
 
   // === 원자재 4 카드 (Gold · WTI · Copper · Uranium) ===
@@ -1757,6 +1762,17 @@ window._fetchCryptoHistory = async function(id, days){
     window._bootstrap && window._bootstrap();
     window._refreshOverview && window._refreshOverview();
   }catch(e){ console.warn('Overview crypto fetch:', e); }
+  // 90일 historical (BTC + ETH) — sparkline 용
+  try{
+    const fetchHist = async (id)=>{
+      const r=await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=90`);
+      const d=await r.json();
+      return (d.prices||[]).map(([ts,p])=>({date:new Date(ts).toISOString().slice(0,10), value:p})).reverse();
+    };
+    const [btc, eth] = await Promise.all([fetchHist('bitcoin'), fetchHist('ethereum')]);
+    window._cryptoHistory = {bitcoin: btc, ethereum: eth};
+    window._refreshOverview && window._refreshOverview();
+  }catch(e){ console.warn('Overview crypto history:', e); }
 })();
 </script>
 
