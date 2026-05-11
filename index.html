@@ -721,7 +721,18 @@ function renderKPIs(fredPayload, sentData){
     const prevV2=prevDgs?calcNTFS(prevDgs.date):null;
     const diff2=(cur2!=null && prevV2!=null)?cur2-prevV2:null;
     const ribbon2 = cur2>0.5?'red':cur2<-0.5?'green':'neutral';
-    cards.push({label:'NTFS (선도지표)',src:'FRED',ribbon:ribbon2,value:fmt(cur2,3,'','%'),sub:cur2>0.5?'인상 선반영':cur2<-0.5?'인하 선반영':'중립',change:chgEl(diff2,3,'%p'),date:e2?.date||'–'});
+    // NTFS historical 시계열 계산 (3 시리즈 join)
+    const ntfsSeries = [];
+    const _dgs1Map = {}, _dgs2Map = {};
+    for(const o of (fetched['DGS1']||[])) _dgs1Map[o.date] = o.value;
+    for(const o of (fetched['DGS2']||[])) _dgs2Map[o.date] = o.value;
+    for(const o of (fetched['DGS3MO']||[])){
+      const v1 = _dgs1Map[o.date], v2 = _dgs2Map[o.date];
+      if(v1!=null && v2!=null){
+        ntfsSeries.push({date:o.date, value:2.25*v2 - 1.25*v1 - o.value});
+      }
+    }
+    cards.push({label:'NTFS (선도지표)',src:'FRED',ribbon:ribbon2,value:fmt(cur2,3,'','%'),sub:cur2>0.5?'인상 선반영':cur2<-0.5?'인하 선반영':'중립',change:chgEl(diff2,3,'%p'),date:e2?.date||'–',series:ntfsSeries});
 
     // 5. SOFR-IORB
     const sv=findVal('SOFR',sync), iv=findVal('IORB',sync);
