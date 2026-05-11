@@ -712,7 +712,7 @@ function renderKPIs(fredPayload, sentData){
     const prevV=findVal('T10Y3M',prev);
     const diff=(cur!=null && prevV!=null)?cur-prevV:null;
     const ribbon = cur<0?'red':cur<0.2?'amber':'green';
-    cards.push({label:'장단기차 10Y-3M',src:'FRED',ribbon,value:fmt(cur,2,'','%'),sub:cur<0?'역전 중':cur<0.2?'거의 평탄':'정상 기울기',change:chgEl(diff,2,'%p'),date:e?.date||'–'});
+    cards.push({label:'장단기차 10Y-3M',src:'FRED',ribbon,value:fmt(cur,2,'','%'),sub:cur<0?'역전 중':cur<0.2?'거의 평탄':'정상 기울기',change:chgEl(diff,2,'%p'),date:e?.date||'–',series:fetched['T10Y3M']||[]});
 
     // 4. NTFS
     const cur2=calcNTFS(sync);
@@ -735,14 +735,14 @@ function renderKPIs(fredPayload, sentData){
     const vR=findVal('WRESBAL',sync);
     const pR=findVal('WRESBAL',prev);
     const diffR=(vR!=null && pR!=null)?(vR-pR)/1000:null;
-    cards.push({label:'준비금 (WRESBAL)',src:'FRED',ribbon:'neutral',value:fmt(vR!=null?vR/1000:null,0,'$','B'),sub:'전주 대비',change:chgEl(diffR,0,'B'),date:eR?.date||'–'});
+    cards.push({label:'준비금 (WRESBAL)',src:'FRED',ribbon:'neutral',value:fmt(vR!=null?vR/1000:null,0,'$','B'),sub:'전주 대비',change:chgEl(diffR,0,'B'),date:eR?.date||'–',series:fetched['WRESBAL']||[]});
 
     // 7. TGA (WDTGAL)
     const eT=findEntry('WDTGAL',sync);
     const vT=findVal('WDTGAL',sync);
     const pT=findVal('WDTGAL',prev);
     const diffT=(vT!=null && pT!=null)?(vT-pT)/1000:null;
-    cards.push({label:'TGA (WDTGAL)',src:'FRED',ribbon:'neutral',value:fmt(vT!=null?vT/1000:null,0,'$','B'),sub:'전주 대비',change:chgEl(diffT,0,'B'),date:eT?.date||'–'});
+    cards.push({label:'TGA (WDTGAL)',src:'FRED',ribbon:'neutral',value:fmt(vT!=null?vT/1000:null,0,'$','B'),sub:'전주 대비',change:chgEl(diffT,0,'B'),date:eT?.date||'–',series:fetched['WDTGAL']||[]});
   } else {
     ['장단기차 10Y-3M','NTFS (선도지표)','SOFR − IORB','준비금 (WRESBAL)','TGA (WDTGAL)'].forEach(l=>{
       cards.push({label:l,src:'FRED',ribbon:'neutral',loading:true});
@@ -762,7 +762,7 @@ function renderKPIs(fredPayload, sentData){
       const s = fx.series[fc.key];
       const lat = s[0], pv = s[1]?.value;
       const diff = (pv!=null) ? lat.value - pv : null;
-      cards.push({label:fc.label, src:fc.src, ribbon:'neutral', value:fmt(lat.value, fc.dec), sub:fc.sub, change:chgEl(diff, fc.dec), date:lat.date});
+      cards.push({label:fc.label, src:fc.src, ribbon:'neutral', value:fmt(lat.value, fc.dec), sub:fc.sub, change:chgEl(diff, fc.dec), date:lat.date, series:fx?.series?.[fc.key]||[]});
     } else cards.push({label:fc.label, src:fc.src, ribbon:'neutral', loading:true});
   }
   // BTC
@@ -791,23 +791,25 @@ function renderKPIs(fredPayload, sentData){
       const s = com.series[cc.key];
       const lat = s[0], pv = s[1]?.value;
       const diff = (pv!=null) ? lat.value - pv : null;
-      cards.push({label:cc.label, src:cc.src, ribbon:'neutral', value:cc.prefix+fmt(lat.value,cc.dec), sub:cc.sub, change:chgEl(diff,cc.dec), date:lat.date});
+      cards.push({label:cc.label, src:cc.src, ribbon:'neutral', value:cc.prefix+fmt(lat.value,cc.dec), sub:cc.sub, change:chgEl(diff,cc.dec), date:lat.date, series:com?.series?.[cc.key]||[]});
     } else cards.push({label:cc.label, src:cc.src, ribbon:'neutral', loading:true});
   }
 
   // 카드를 카테고리별로 그룹화 (push 순서 기반: 0-1=sentiment, 2-6=macro, 7-11=fx, 12-15=commodities)
-  function cardHTML(c){
+  function cardHTML(c, idx){
     if(c.loading){
       return `<div class="kpi"><span class="kpi-ribbon ${c.ribbon||'neutral'}"></span>
         <div class="kpi-head"><div class="kpi-label">${c.label}</div><span class="kpi-src">${c.src}</span></div>
         <div class="kpi-value loading">로딩 중…</div></div>`;
     }
+    const sparkHTML = (c.series && c.series.length) ? `<div style="height:30px;margin-top:6px;position:relative;"><canvas id="ov-spark-${idx}"></canvas></div>` : '';
     return `<div class="kpi"><span class="kpi-ribbon ${c.ribbon||'neutral'}"></span>
       <div class="kpi-head"><div class="kpi-label">${c.label}</div><span class="kpi-src">${c.src}</span></div>
       <div class="kpi-value">${c.value}</div>
       ${c.sub?`<div class="kpi-sub">${c.sub}</div>`:''}
       ${c.change||''}
       ${c.date?`<div class="kpi-date">${c.date}</div>`:''}
+      ${sparkHTML}
     </div>`;
   }
 
@@ -828,9 +830,18 @@ function renderKPIs(fredPayload, sentData){
         <h3>${g.label}</h3>
         <span class="kpi-cat-count">${items.length}개</span>
       </div>
-      <div class="kpi-grid">${items.map(cardHTML).join('')}</div>
+      <div class="kpi-grid">${items.map((c,li)=>cardHTML(c, g.range[0]+li)).join('')}</div>
     </div>`;
   }).join('');
+
+  // 종합 탭 sparkline 그리기 (90일)
+  setTimeout(()=>{
+    cards.forEach((c, idx)=>{
+      if(c.series && c.series.length && window._drawSpark){
+        window._drawSpark('ov-spark-'+idx, c.series, '#60a5fa');
+      }
+    });
+  }, 50);
 }
 
 // ══════════════════════════════════════════════════════════
