@@ -1598,19 +1598,37 @@ window.addEventListener('resize',()=>{
         const d30 = findValueAtOrBefore(series,30);
         const c = document.createElement('div');
         c.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;';
+        // 추가 변동률
+        const d90 = findValueAtOrBefore(series,90);
+        const d365 = findValueAtOrBefore(series,365);
+        // YTD
+        const curYear = new Date(latest.date).getFullYear();
+        let ytdRef = null;
+        for(let i=series.length-1;i>=0;i--){if(parseInt(series[i].date.slice(0,4))===curYear){ytdRef=series[i];break;}}
+        // 52주 high/low
+        const last252 = series.slice(0,Math.min(252,series.length));
+        const vals = last252.map(o=>o.value);
+        const high52 = Math.max(...vals), low52 = Math.min(...vals);
+        const pos52 = (high52===low52)?50:((latest.value-low52)/(high52-low52))*100;
+        const dec = decimals[key]||2;
         c.innerHTML = `
           <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase;">${meta.label}</div>
-          <div style="font-size:22px;font-weight:700;margin-bottom:6px;">${fmt(latest.value,decimals[key]||2)}</div>
-          <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;">
-            <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1D </span><span style="color:${pct(latest.value,d1?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d1?.value))}</span></div>
-            <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1W </span><span style="color:${pct(latest.value,d7?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d7?.value))}</span></div>
-            <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">1M </span><span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
+          <div style="font-size:22px;font-weight:700;margin-bottom:6px;">${fmt(latest.value,dec)}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;font-size:11px;">
+            <div><span style="color:var(--muted);font-size:9px;">1D</span> <span style="color:${pct(latest.value,d1?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d1?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">1W</span> <span style="color:${pct(latest.value,d7?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d7?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">1M</span> <span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">3M</span> <span style="color:${pct(latest.value,d90?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d90?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">YTD</span> <span style="color:${pct(latest.value,ytdRef?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,ytdRef?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">1Y</span> <span style="color:${pct(latest.value,d365?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d365?.value))}</span></div>
           </div>
+          <div style="margin-top:8px;font-size:9px;color:var(--muted);display:flex;justify-content:space-between;"><span>L ${fmt(low52,dec)}</span><span>52주 ${pos52.toFixed(0)}%</span><span>H ${fmt(high52,dec)}</span></div>
+          <div style="height:4px;background:#2a2d3a;border-radius:2px;margin-top:3px;position:relative;"><div style="position:absolute;left:${pos52}%;top:-2px;width:2px;height:8px;background:#60a5fa;"></div></div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">최신: ${latest.date}</div>
-          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-fiat-${key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">90일</div></div>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-fiat-${key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">1년</div></div>
         `;
         fiatEl.appendChild(c);
-        setTimeout(()=>window._drawSpark(`spark-fiat-${key}`, series, '#60a5fa'), 10);
+        setTimeout(()=>window._drawSpark(`spark-fiat-${key}`, series, '#60a5fa', 365), 10);
       }
       const ts = data.collected_at?new Date(data.collected_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'?';
       updTime.textContent = `FRED 수집: ${ts} · BTC/ETH: 실시간 (페이지 로드 시점)`;
@@ -1632,13 +1650,36 @@ window.addEventListener('resize',()=>{
           <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;">
             <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;">24H </span><span style="color:${(d.usd_24h_change||0)>=0?'#22c55e':'#ef4444'};">${fmtPct(d.usd_24h_change)}</span></div>
           </div>
+          <div id="crypto-extra-${cc.key}" style="font-size:11px;color:var(--muted);margin-top:6px;">historical 로딩…</div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;">CoinGecko</div>
-          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-crypto-${cc.key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">90일</div></div>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-crypto-${cc.key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">1년</div></div>
         `;
         cryptoEl.appendChild(c);
-        // historical fetch + sparkline (async)
-        window._fetchCryptoHistory(cc.key, 90).then(hist=>{
-          if(hist) window._drawSpark(`spark-crypto-${cc.key}`, hist, '#f59e0b');
+        // 365일 historical fetch + sparkline + 52주 bar
+        window._fetchCryptoHistory(cc.key, 365).then(hist=>{
+          if(!hist || !hist.length) return;
+          window._drawSpark(`spark-crypto-${cc.key}`, hist, '#f59e0b', 365);
+          // 52주 + 변동률
+          const cur=hist[0].value;
+          const cyr=new Date(hist[0].date).getFullYear();
+          let ytd=null; for(let i=hist.length-1;i>=0;i--){if(parseInt(hist[i].date.slice(0,4))===cyr){ytd=hist[i];break;}}
+          const m1=hist[Math.min(30,hist.length-1)]?.value, m3=hist[Math.min(90,hist.length-1)]?.value, y1=hist[hist.length-1]?.value;
+          const last252=hist.slice(0,Math.min(252,hist.length));
+          const vals=last252.map(o=>o.value);
+          const hi=Math.max(...vals), lo=Math.min(...vals);
+          const pos=(hi===lo)?50:((cur-lo)/(hi-lo))*100;
+          const fp=(p)=>p==null||isNaN(p)?'—':(p>=0?'+':'')+p.toFixed(2)+'%';
+          const c1m=m1?((cur-m1)/m1)*100:null, c3m=m3?((cur-m3)/m3)*100:null;
+          const cytd=ytd?((cur-ytd.value)/ytd.value)*100:null, c1y=y1?((cur-y1)/y1)*100:null;
+          document.getElementById(`crypto-extra-${cc.key}`).innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px 10px;">
+              <div><span style="font-size:9px;">1M</span> <span style="color:${(c1m||0)>=0?'#22c55e':'#ef4444'};">${fp(c1m)}</span></div>
+              <div><span style="font-size:9px;">3M</span> <span style="color:${(c3m||0)>=0?'#22c55e':'#ef4444'};">${fp(c3m)}</span></div>
+              <div><span style="font-size:9px;">YTD</span> <span style="color:${(cytd||0)>=0?'#22c55e':'#ef4444'};">${fp(cytd)}</span></div>
+              <div><span style="font-size:9px;">1Y</span> <span style="color:${(c1y||0)>=0?'#22c55e':'#ef4444'};">${fp(c1y)}</span></div>
+            </div>
+            <div style="margin-top:6px;font-size:9px;display:flex;justify-content:space-between;"><span>L $${fmt(lo,0)}</span><span>52주 ${pos.toFixed(0)}%</span><span>H $${fmt(hi,0)}</span></div>
+            <div style="height:4px;background:#2a2d3a;border-radius:2px;margin-top:3px;position:relative;"><div style="position:absolute;left:${pos}%;top:-2px;width:2px;height:8px;background:#f59e0b;"></div></div>`;
         });
       }
     }
@@ -1711,20 +1752,31 @@ window.addEventListener('resize',()=>{
         const latest = series[0];
         const d1 = findBefore(series,1), d7 = findBefore(series,7), d30 = findBefore(series,30), d365 = findBefore(series,365);
         const dec = DEC[key]||2;
+        const d90c = findBefore(series,90);
+        const cyrc = new Date(latest.date).getFullYear();
+        let ytdc=null; for(let i=series.length-1;i>=0;i--){if(parseInt(series[i].date.slice(0,4))===cyrc){ytdc=series[i];break;}}
+        const last252c = series.slice(0,Math.min(252,series.length));
+        const valsc = last252c.map(o=>o.value);
+        const hi52c = Math.max(...valsc), lo52c = Math.min(...valsc);
+        const pos52c = (hi52c===lo52c)?50:((latest.value-lo52c)/(hi52c-lo52c))*100;
         c.innerHTML = `
           <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${meta.label}</div>
           <div style="font-size:22px;font-weight:700;margin-bottom:6px;">${fmt(latest.value, dec)}</div>
-          <div style="display:flex;gap:14px;font-size:11px;flex-wrap:wrap;">
-            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1D </span><span style="color:${pct(latest.value,d1?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d1?.value))}</span></div>
-            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1W </span><span style="color:${pct(latest.value,d7?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d7?.value))}</span></div>
-            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1M </span><span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
-            <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;">1Y </span><span style="color:${pct(latest.value,d365?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d365?.value))}</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;font-size:11px;">
+            <div><span style="color:var(--muted);font-size:9px;">1D</span> <span style="color:${pct(latest.value,d1?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d1?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">1W</span> <span style="color:${pct(latest.value,d7?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d7?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">1M</span> <span style="color:${pct(latest.value,d30?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d30?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">3M</span> <span style="color:${pct(latest.value,d90c?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d90c?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">YTD</span> <span style="color:${pct(latest.value,ytdc?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,ytdc?.value))}</span></div>
+            <div><span style="color:var(--muted);font-size:9px;">1Y</span> <span style="color:${pct(latest.value,d365?.value)>=0?'#22c55e':'#ef4444'};">${fmtPct(pct(latest.value,d365?.value))}</span></div>
           </div>
+          <div style="margin-top:8px;font-size:9px;color:var(--muted);display:flex;justify-content:space-between;"><span>L ${fmt(lo52c,dec)}</span><span>52주 ${pos52c.toFixed(0)}%</span><span>H ${fmt(hi52c,dec)}</span></div>
+          <div style="height:4px;background:#2a2d3a;border-radius:2px;margin-top:3px;position:relative;"><div style="position:absolute;left:${pos52c}%;top:-2px;width:2px;height:8px;background:${COLORS[catKey]||'#60a5fa'};"></div></div>
           <div style="font-size:10px;color:var(--muted);margin-top:8px;display:flex;justify-content:space-between;"><span>${latest.date}</span><span style="padding:1px 5px;border-radius:3px;border:1px solid var(--border);">${meta.source.toUpperCase()}</span></div>
-          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-com-${key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">90일</div></div>
+          <div style="height:50px;margin-top:8px;position:relative;"><canvas id="spark-com-${key}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);">1년</div></div>
         `;
         grid.appendChild(c);
-        setTimeout(()=>window._drawSpark(`spark-com-${key}`, series, COLORS[catKey]||'#60a5fa'), 10);
+        setTimeout(()=>window._drawSpark(`spark-com-${key}`, series, COLORS[catKey]||'#60a5fa', 365), 10);
       }
       sectionsEl.appendChild(sec);
     }
@@ -1742,11 +1794,12 @@ window.addEventListener('resize',()=>{
 
 <!-- Sparkline 공통 utility -->
 <script>
-window._drawSpark = function(canvasId, series, color){
+window._drawSpark = function(canvasId, series, color, days){
   if(!series || !series.length) return;
   const ctx = document.getElementById(canvasId)?.getContext('2d');
   if(!ctx) return;
-  const last = series.slice(0, Math.min(90, series.length)).reverse();
+  const n = Math.min(days||90, series.length);
+  const last = series.slice(0, n).reverse();
   new Chart(ctx, {
     type:'line',
     data:{labels:last.map(o=>o.date),datasets:[{data:last.map(o=>o.value),borderColor:color||'#60a5fa',borderWidth:1.5,fill:true,backgroundColor:(color||'#60a5fa')+'1a',pointRadius:0,tension:0.2}]},
