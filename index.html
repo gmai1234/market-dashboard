@@ -258,7 +258,7 @@
     <!-- 일드커브 + Net Liquidity (PC 2 column / 모바일 stack) — 2026-05-16 grid 묶음 -->
     <div class="grid-charts">
       <div class="card" id="yieldCard">
-        <div class="card-title">📈 미국채 일드커브 (명목 vs TIPS) <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 4시점 + TIPS overlay</span></div>
+        <div class="card-title">📈 미국채 일드커브 (명목 vs TIPS) <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 4시점 + TIPS overlay</span><span id="yieldCardDate" style="font-size:10px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px;"></span></div>
         <div class="chart-wrap"><canvas id="yieldChart"></canvas></div>
         <!-- Yield table — 데스크탑 가로 / 모바일 세로 transpose -->
         <div style="margin-top:14px;">
@@ -279,11 +279,11 @@
     <!-- 스프레드 + 유동성 -->
     <div class="grid-charts" id="gridCharts">
       <div class="card">
-        <div class="card-title">📉 금리 스프레드 추이 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 좌=과거 → 우=최근</span></div>
+        <div class="card-title">📉 금리 스프레드 추이 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 좌=과거 → 우=최근</span><span id="spreadCardDate" style="font-size:10px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px;"></span></div>
         <div class="chart-wrap"><canvas id="spreadChart"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">💧 유동성 동향 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· TGA / 준비금 / ON RRP (좌=과거 → 우=최근)</span></div>
+        <div class="card-title">💧 유동성 동향 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· TGA / 준비금 / ON RRP (좌=과거 → 우=최근)</span><span id="liqCardDate" style="font-size:10px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px;"></span></div>
         <div class="chart-wrap"><canvas id="liquidityChart"></canvas></div>
       </div>
     </div>
@@ -1091,6 +1091,8 @@ const CD=()=>({responsive:true,maintainAspectRatio:false,
           y:{ticks:{color:'#8892a4',font:{size:11}},grid:{color:GRID_COLOR(),lineWidth:GRID_WIDTH()}}}});
 
 function buildYieldChart(sync){
+  const dEl = document.getElementById('yieldCardDate');
+  if(dEl) dEl.textContent = sync ? '· ' + sync : '';
   const mk=(label,date,color,lw,dash=[],isCurrent=false)=>({label,borderColor:color,backgroundColor:'transparent',
     borderWidth:LW(lw),borderDash:dash,
     pointRadius: isCurrent ? (isMobile()?3:3) : (isMobile()?2:2),
@@ -1140,7 +1142,10 @@ function buildYieldChart(sync){
           min:minY,max:maxY,ticks:{...CD().scales.y.ticks,callback:v=>v!=null?v.toFixed(2)+'%':''}}}}});}
 
 function buildSpreadChart(sync){
-  const obs=(fetched['SOFR']||[]).slice(0,150).sort((a,b)=>a.date.localeCompare(b.date));
+  const sofrArr = fetched['SOFR']||[];
+  const dEl = document.getElementById('spreadCardDate');
+  if(dEl) dEl.textContent = sofrArr.length ? '· ' + sofrArr[0].date : '';
+  const obs=sofrArr.slice(0,150).sort((a,b)=>a.date.localeCompare(b.date));
   const labels=[],si=[],ntfs=[],t10=[];
   obs.forEach(o=>{const d=o.date,sv=parseFloat(o.value),iv=findVal('IORB',d),nv=calcNTFS(d),tv=findVal('T10Y3M',d);
     if(!isNaN(sv)&&iv!==null&&nv!==null&&tv!==null){labels.push(d.slice(5));si.push((sv-iv).toFixed(4));ntfs.push(nv.toFixed(4));t10.push(tv.toFixed(4));}});
@@ -1162,7 +1167,10 @@ function buildSpreadChart(sync){
       scales:{...CD().scales,y:{...CD().scales.y,ticks:{...CD().scales.y.ticks,callback:v=>v!=null?parseFloat(v).toFixed(2)+'%':''}}}}}); }
 
 function buildLiquidityChart(){
-  const obs=(fetched['WRESBAL']||[]).slice(0,156).sort((a,b)=>a.date.localeCompare(b.date));
+  const wresArr = fetched['WRESBAL']||[];
+  const dEl = document.getElementById('liqCardDate');
+  if(dEl) dEl.textContent = wresArr.length ? '· ' + wresArr[0].date : '';
+  const obs=wresArr.slice(0,156).sort((a,b)=>a.date.localeCompare(b.date));
   const labels=[],tga=[],res=[],rrp=[];
   obs.forEach(o=>{const tv=findVal('WDTGAL',o.date),rv=parseFloat(o.value),rv2=findVal('RRPONTSYD',o.date);
     if(tv!==null&&rv2!==null){labels.push(o.date.slice(5));tga.push((tv/1000).toFixed(2));res.push((rv/1000).toFixed(2));rrp.push(rv2.toFixed(2));}});
