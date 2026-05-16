@@ -1344,7 +1344,7 @@ function buildYieldTable(sync){
   const isNarrow = window.innerWidth < 768;
 
   if(isNarrow){
-    // 모바일: 11 maturity row × 4 column (Maturity / 명목 / TIPS / B/E)
+    // 모바일: TIPS 가 있는 maturity 만 (5Y/7Y/10Y/20Y/30Y) 5 row × 4 column. 1M~3Y 명목은 아래 지표 요약표에 있음 — 중복 회피
     colgroup.innerHTML = '<col style="width:54px;"><col><col><col>';
 
     const headers = '<tr style="border-bottom:1px solid var(--border);color:var(--muted);">' +
@@ -1354,13 +1354,14 @@ function buildYieldTable(sync){
       '<th style="text-align:right;padding:6px 4px;font-weight:600;font-size:10px;color:#94a3b8;">B/E</th>' +
       '</tr>';
 
-    const rows = maturities.map((m, i) =>
-      `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="text-align:left;padding:5px 8px;font-weight:600;font-size:11px;">${m.label}</td>` +
-      `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${nomVals[i] != null ? '#ef4444' : ''};">${fmtCell(nomVals[i])}</td>` +
-      `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${tipsVals[i] != null ? '#a78bfa' : ''};">${fmtCell(tipsVals[i])}</td>` +
-      `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${beVals[i] != null ? '#94a3b8' : ''};">${fmtCell(beVals[i])}</td>` +
-      '</tr>'
-    ).join('');
+    const rows = maturities.map((m, i) => {
+      if(m.tips === null) return '';  // TIPS 없는 maturity 모바일 표에서 제외
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="text-align:left;padding:5px 8px;font-weight:600;font-size:11px;">${m.label}</td>` +
+        `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${nomVals[i] != null ? '#ef4444' : ''};">${fmtCell(nomVals[i])}</td>` +
+        `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${tipsVals[i] != null ? '#a78bfa' : ''};">${fmtCell(tipsVals[i])}</td>` +
+        `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${beVals[i] != null ? '#94a3b8' : ''};">${fmtCell(beVals[i])}</td>` +
+        '</tr>';
+    }).join('');
 
     tbody.innerHTML = headers + rows;
   } else {
