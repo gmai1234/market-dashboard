@@ -1030,12 +1030,23 @@ function buildTable(sync,prev){
   const addSection=t=>{ const tr=document.createElement('tr');
     tr.innerHTML=`<td colspan="4" style="background:#1f2235;color:var(--accent);font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:5px 10px">${t}</td>`;
     tb.appendChild(tr); };
+  // Heatmap (NEW 2026-05-16): 변동률 magnitude 비례 background-color alpha
+  //   ≥10bp = max alpha (눈에 띄게), <1bp = 거의 무색. inv=true 면 부호 반전 (yield ↓ = 우호 = green)
+  const heatmapStyle = (dn, inv) => {
+    if(isNaN(dn) || dn === 0) return '';
+    const abs = Math.abs(dn);
+    const alpha = Math.min(abs / 0.1, 1) * 0.35;  // 10bp = max alpha 0.35
+    const positive = inv ? dn < 0 : dn > 0;
+    const rgb = positive ? '34, 197, 94' : '239, 68, 68';  // green / red
+    return `background-color:rgba(${rgb}, ${alpha.toFixed(2)});`;
+  };
   const addRow=(date,name,val,diff,sub=false,inv=false,refDate='')=>{
     const tr=document.createElement('tr'); if(sub)tr.className='sub-row';
     const dn=parseFloat(diff), ds=isNaN(dn)?diff:(dn>0?'+':'')+dn.toFixed(sub?4:3);
     const cls=isNaN(dn)?'':cc(dn,inv);
+    const heatBg = isNaN(dn) ? '' : heatmapStyle(dn, inv);
     const dateDiff=refDate&&date&&date!==refDate?`<span style="color:#60a5fa;font-size:10px" title="최신 가용일자 기준">★</span> `:'';
-    tr.innerHTML=`<td style="color:var(--muted);font-size:11px">${dateDiff}${date||''}</td><td>${name}</td><td><b>${val}</b></td><td class="${cls}">${ds}</td>`;
+    tr.innerHTML=`<td style="color:var(--muted);font-size:11px">${dateDiff}${date||''}</td><td>${name}</td><td><b>${val}</b></td><td class="${cls}" style="${heatBg}">${ds}</td>`;
     tb.appendChild(tr); };
 
   addSection('🏦 미국 국채 수익률');
