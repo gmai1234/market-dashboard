@@ -817,9 +817,9 @@ function renderKPIs(fredPayload, sentData){
   const fx = window.FX_DATA;
   const cryp = window._cryptoData;
   const fxCards = [
-    {key:'DXY',     label:'DXY',     src:'FRED', dec:2, sub:'Broad USD Index'},
-    {key:'USD_KRW', label:'USD/KRW', src:'FRED', dec:2, sub:'1 USD = X KRW'},
-    {key:'EUR_USD', label:'EUR/USD', src:'FRED', dec:4, sub:'1 EUR = X USD'},
+    {key:'DXY',     label:'DXY',     src:'Yahoo', dec:2, sub:'ICE Dollar Index'},
+    {key:'USD_KRW', label:'USD/KRW', src:'ECB',   dec:2, sub:'1 USD = X KRW'},
+    {key:'EUR_USD', label:'EUR/USD', src:'ECB',   dec:4, sub:'1 EUR = X USD'},
   ];
   for(const fc of fxCards){
     if(fx?.series?.[fc.key]?.length){
@@ -846,7 +846,7 @@ function renderKPIs(fredPayload, sentData){
   const com = window.COMMODITIES_DATA;
   const comCards = [
     {key:'GOLD',    label:'Gold',           src:'Yahoo', dec:2, prefix:'$',  sub:'XAU/USD'},
-    {key:'WTI',     label:'WTI Crude',      src:'FRED',  dec:2, prefix:'$',  sub:'$/bbl'},
+    {key:'WTI',     label:'WTI Crude',      src:'Yahoo', dec:2, prefix:'$',  sub:'$/bbl (CL=F)'},
     {key:'COPPER',  label:'Copper',         src:'Yahoo', dec:3, prefix:'$',  sub:'$/lb (HG=F)'},
     {key:'URANIUM', label:'Uranium (URA)',  src:'Yahoo', dec:2, prefix:'$',  sub:'ETF proxy'},
   ];
