@@ -1807,9 +1807,13 @@ setTimeout(()=>{
   })();
 }, 10000);
 
-// 브레이크포인트 전환 시 매크로/센티 차트 재그림
+// 브레이크포인트 전환 시 매크로/센티 차트 재그림 — width 변화 시에만 (모바일 주소바 hide/show 깜빡 회피, 2026-05-16)
 let _resizeTimer=null;
+let _lastWidth=window.innerWidth;
 window.addEventListener('resize',()=>{
+  const currentWidth = window.innerWidth;
+  if(currentWidth === _lastWidth) return;  // height-only resize (모바일 주소바 등) skip
+  _lastWidth = currentWidth;
   clearTimeout(_resizeTimer);
   _resizeTimer=setTimeout(()=>{
     if(window._macroPayload) renderMacroTab(window._macroPayload);
