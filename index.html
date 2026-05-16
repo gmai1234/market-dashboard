@@ -230,6 +230,7 @@
   <button class="tab-btn" data-tab="sentiment" role="tab">센티멘트</button>
   <button class="tab-btn" data-tab="fx" role="tab">환율</button>
   <button class="tab-btn" data-tab="commodities" role="tab">원자재</button>
+  <button class="tab-btn" data-tab="inflation" role="tab">물가</button>
 </nav>
 
 <main>
@@ -433,6 +434,39 @@
         <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.eia.gov/dnav/ng/ng_pri_fut_s1_d.htm"><span class="v-name">Henry Hub NG (EIA)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
         <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.cameco.com/invest/markets/uranium-price"><span class="v-name">Uranium (Cameco)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
         <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://sprott.com/investment-strategies/physical-commodity-funds/uranium/"><span class="v-name">Uranium (Sprott)<span class="v-source-tag">ETF</span></span><span class="v-icon">🔗</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 물가 탭 — 추가 2026-05-16 -->
+  <section class="tab-panel" id="tab-inflation" hidden>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">
+      <span id="inf-updated-time">데이터 로딩 중…</span>
+    </div>
+
+    <!-- 인플레이션 6 카드 detail -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-title">💵 인플레이션 지표 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· YoY % vs Fed target 2%</span></div>
+      <div id="inf-cards-grid" class="kpi-grid"></div>
+    </div>
+
+    <!-- YoY 5년 추이 차트 -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-title">📊 인플레이션 YoY 추이 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 5년 · CPI · Core CPI · PCE · Core PCE + Fed target 2%</span></div>
+      <div class="chart-wrap"><canvas id="inflationYoyChart"></canvas></div>
+    </div>
+
+    <!-- 1차 출처 -->
+    <div style="margin-top:24px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.3px;">
+        🔍 1차 출처
+      </div>
+      <div class="cross-v-grid">
+        <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.bls.gov/cpi/"><span class="v-name">CPI (BLS)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
+        <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.bea.gov/data/personal-consumption-expenditures-price-index"><span class="v-name">PCE (BEA)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
+        <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.bls.gov/ppi/"><span class="v-name">PPI (BLS)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
+        <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://fred.stlouisfed.org/series/T5YIE"><span class="v-name">5Y Breakeven (FRED)<span class="v-source-tag">공식</span></span><span class="v-icon">🔗</span></a>
+        <a class="v-item ok" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;" href="https://www.federalreserve.gov/monetarypolicy/2pct-inflation-target.htm"><span class="v-name">Fed 2% Target<span class="v-source-tag">정책</span></span><span class="v-icon">🔗</span></a>
       </div>
     </div>
   </section>
@@ -1578,6 +1612,7 @@ window._bootstrap = async function(){
   renderKPIs(fred, sent);
   renderMacroTab(fred);
   renderSentimentTab(sent);
+  if(window._inflationRender) window._inflationRender();
   updateStatus(fred, sent);
 };
 
@@ -1599,6 +1634,7 @@ setTimeout(()=>{
     renderKPIs(fred, sent);
     renderMacroTab(fred);
     renderSentimentTab(sent);
+    if(window._inflationRender) window._inflationRender();
     updateStatus(fred, sent);
   })();
 }, 10000);
@@ -1974,6 +2010,136 @@ window._fxValidate = async function(){
     }
   };
 })();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════
+// 물가 탭: Inflation Detail 렌더 — 추가 2026-05-16
+// ══════════════════════════════════════════════════════════
+window._inflationRender = function(){
+  if(typeof fetched === 'undefined' || !fetched.CPIAUCSL){
+    setTimeout(window._inflationRender, 300);
+    return;
+  }
+  const cardsEl = document.getElementById('inf-cards-grid');
+  if(!cardsEl) return;
+
+  function yoyFromIndex(arr){
+    if(!arr || arr.length < 13) return null;
+    const lv = parseFloat(arr[0].value), yv = parseFloat(arr[12].value);
+    if(isNaN(lv) || isNaN(yv) || yv === 0) return null;
+    return ((lv / yv) - 1) * 100;
+  }
+  function calcYoySeries(arr, n){
+    const out = [];
+    for(let i=0; i<Math.min(arr.length-12, n); i++){
+      const lv = parseFloat(arr[i].value), yv = parseFloat(arr[i+12].value);
+      if(!isNaN(lv) && !isNaN(yv) && yv > 0){
+        out.push({date: arr[i].date, value: ((lv/yv) - 1) * 100});
+      }
+    }
+    return out;
+  }
+
+  const defs = [
+    {key:'CPIAUCSL', label:'CPI',          sub:'All items'},
+    {key:'CPILFESL', label:'Core CPI',     sub:'ex food & energy'},
+    {key:'PCEPI',    label:'PCE',          sub:'Fed measure'},
+    {key:'PCEPILFE', label:'Core PCE',     sub:'Fed preferred'},
+    {key:'PPIACO',   label:'PPI',          sub:'Producer'},
+    {key:'T5YIE',    label:'5Y Breakeven', sub:'Market expected', isLevel:true},
+  ];
+
+  cardsEl.innerHTML = '';
+  defs.forEach((d, idx) => {
+    const arr = fetched[d.key] || [];
+    if(d.isLevel){
+      const lat = arr[0], pv = arr[1];
+      if(!lat){
+        cardsEl.insertAdjacentHTML('beforeend', `<div class="kpi"><span class="kpi-ribbon neutral"></span><div class="kpi-head"><div class="kpi-label">${d.label}</div><span class="kpi-src">FRED</span></div><div class="kpi-value loading">로딩 중…</div></div>`);
+        return;
+      }
+      const latV = parseFloat(lat.value);
+      const pvV = pv ? parseFloat(pv.value) : null;
+      const diff = (pvV != null && !isNaN(pvV)) ? latV - pvV : null;
+      const ribbon = latV > 3.0 ? 'amber' : latV < 1.8 ? 'blue' : 'neutral';
+      const changeHTML = diff != null ? `<div class="kpi-change ${diff>=0?'pos':'neg'}">${diff>=0?'+':''}${diff.toFixed(3)}%p</div>` : '';
+      cardsEl.insertAdjacentHTML('beforeend', `<div class="kpi"><span class="kpi-ribbon ${ribbon}"></span>
+        <div class="kpi-head"><div class="kpi-label">${d.label}</div><span class="kpi-src">FRED</span></div>
+        <div class="kpi-value">${latV.toFixed(2)}%</div>
+        <div class="kpi-sub">${d.sub}</div>
+        ${changeHTML}
+        <div class="kpi-date">${lat.date}</div>
+        <div style="height:50px;margin-top:8px;position:relative;"><canvas id="inf-spark-${idx}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);opacity:0.6;">5년</div></div>
+      </div>`);
+      setTimeout(()=>{ if(window._drawSpark) window._drawSpark('inf-spark-'+idx, arr, '#a78bfa', 1825); }, 50);
+    } else {
+      const yoy = yoyFromIndex(arr);
+      if(yoy == null){
+        cardsEl.insertAdjacentHTML('beforeend', `<div class="kpi"><span class="kpi-ribbon neutral"></span><div class="kpi-head"><div class="kpi-label">${d.label}</div><span class="kpi-src">FRED</span></div><div class="kpi-value loading">로딩 중…</div></div>`);
+        return;
+      }
+      const prevYoy = yoyFromIndex(arr.slice(1));
+      const diff = prevYoy != null ? yoy - prevYoy : null;
+      const fedDiff = yoy - 2;
+      const ribbon = yoy > 3.5 ? 'red' : yoy > 2.5 ? 'amber' : yoy < 1.5 ? 'blue' : 'green';
+      const changeHTML = diff != null ? `<div class="kpi-change ${diff>=0?'pos':'neg'}">${diff>=0?'+':''}${diff.toFixed(2)}%p</div>` : '';
+      cardsEl.insertAdjacentHTML('beforeend', `<div class="kpi"><span class="kpi-ribbon ${ribbon}"></span>
+        <div class="kpi-head"><div class="kpi-label">${d.label}</div><span class="kpi-src">FRED</span></div>
+        <div class="kpi-value">${yoy.toFixed(1)}%</div>
+        <div class="kpi-sub">${d.sub} · Fed target ${fedDiff>=0?'+':''}${fedDiff.toFixed(1)}%p</div>
+        ${changeHTML}
+        <div class="kpi-date">${arr[0].date}</div>
+        <div style="height:50px;margin-top:8px;position:relative;"><canvas id="inf-spark-${idx}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);opacity:0.6;">YoY 5년</div></div>
+      </div>`);
+      const yoySeries = calcYoySeries(arr, 60);
+      setTimeout(()=>{ if(window._drawSpark) window._drawSpark('inf-spark-'+idx, yoySeries, '#a78bfa', 60); }, 50);
+    }
+  });
+
+  // 업데이트 시간
+  const upd = document.getElementById('inf-updated-time');
+  if(upd){
+    const latestDate = fetched['T5YIE']?.[0]?.date || fetched['CPIAUCSL']?.[0]?.date || '';
+    upd.textContent = `Last update: ${latestDate} (FRED 자동 갱신)`;
+  }
+
+  // YoY 5년 추이 차트 (CPI · Core CPI · PCE · Core PCE 4 line + Fed 2%)
+  const ctx = document.getElementById('inflationYoyChart')?.getContext('2d');
+  if(ctx){
+    const N = 60;
+    const cpiYoy   = calcYoySeries(fetched['CPIAUCSL']||[], N).reverse();
+    const cCpiYoy  = calcYoySeries(fetched['CPILFESL']||[], N).reverse();
+    const pceYoy   = calcYoySeries(fetched['PCEPI']||[], N).reverse();
+    const cPceYoy  = calcYoySeries(fetched['PCEPILFE']||[], N).reverse();
+    const labels   = cpiYoy.map(o => o.date);
+
+    if(window._inflationChart) window._inflationChart.destroy();
+    window._inflationChart = new Chart(ctx, {
+      type:'line',
+      data:{
+        labels: labels,
+        datasets:[
+          {label:'CPI',          data:cpiYoy.map(o=>o.value),  borderColor:'#fb923c', borderWidth:1.5, fill:false, pointRadius:0, tension:0.2},
+          {label:'Core CPI',     data:cCpiYoy.map(o=>o.value), borderColor:'#ef4444', borderWidth:1.5, fill:false, pointRadius:0, tension:0.2},
+          {label:'PCE',          data:pceYoy.map(o=>o.value),  borderColor:'#60a5fa', borderWidth:1.5, fill:false, pointRadius:0, tension:0.2},
+          {label:'Core PCE',     data:cPceYoy.map(o=>o.value), borderColor:'#a78bfa', borderWidth:2.0, fill:false, pointRadius:0, tension:0.2},
+          {label:'Fed Target 2%', data: Array(labels.length).fill(2.0), borderColor:'#22c55e', borderWidth:1, borderDash:[6,4], fill:false, pointRadius:0},
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{display:true, position:'top', labels:{color:'#94a3b8', font:{size:11}, usePointStyle:true, boxWidth:14}},
+          tooltip:{enabled:true, mode:'index', intersect:false}
+        },
+        scales:{
+          x:{display:true, ticks:{color:'#64748b', maxTicksLimit:8, font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'}},
+          y:{display:true, ticks:{color:'#64748b', font:{size:10}, callback:v=>v.toFixed(1)+'%'}, grid:{color:'rgba(255,255,255,0.05)'}}
+        }
+      }
+    });
+  }
+};
 </script>
 </body>
 </html>
