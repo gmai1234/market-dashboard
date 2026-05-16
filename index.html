@@ -1441,11 +1441,11 @@ function buildMacroNarrative(sync, prev){
   const pceStr   = pceValue  != null ? `${pceValue.toFixed(1)}% `  : '';
   const netStr   = netDiff   != null ? `${netDiff >= 0 ? '+' : ''}${netDiff.toFixed(2)}T 월 ` : '';
 
-  const line1 = `<span style="color:var(--muted);">곡선</span> ${fmt(curveLabel, curveColor)} · ` +
+  const line1 = `<span style="color:var(--muted);">장단기차 (10Y-3M)</span> ${fmt(curveLabel, curveColor)} · ` +
                 `<span style="color:var(--muted);">NTFS</span> ${fmt(ntfsLabel, ntfsColor)} · ` +
-                `<span style="color:var(--muted);">실질</span> ${realStr}${fmt(realLabel, realColor)} · ` +
+                `<span style="color:var(--muted);">10Y 실질</span> ${realStr}${fmt(realLabel, realColor)} · ` +
                 `<span style="color:var(--muted);">Core PCE</span> ${pceStr}${fmt(pceLabel, pceColor)} · ` +
-                `<span style="color:var(--muted);">유동성</span> ${netStr}${fmt(netLiqLabel, netLiqColor)}`;
+                `<span style="color:var(--muted);">Net Liquidity</span> ${netStr}${fmt(netLiqLabel, netLiqColor)}`;
 
   // === 종합 영역 분류 (결정 추론 X, 영역 표시만) ===
   let synthesis = '';
