@@ -249,6 +249,12 @@
 
   <!-- 매크로 탭 -->
   <section class="tab-panel" id="tab-macro" hidden>
+    <!-- 실질 금리 (NEW 2026-05-16, Forza BW3 핵심) -->
+    <div class="card" style="margin-bottom:18px" id="realRateCard">
+      <div class="card-title">💎 실질 금리 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 − Breakeven · Forza BW3 핵심</span></div>
+      <div id="real-rate-grid" class="kpi-grid"></div>
+    </div>
+
     <!-- 일드커브 (전체 폭) -->
     <div class="card" style="margin-bottom:18px" id="yieldCard">
       <div class="card-title">📈 미국채 일드커브 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 현재 vs 1M/6M/1Y 전</span></div>
@@ -1266,12 +1272,71 @@ function renderMacroTab(fredPayload){
   if(!fredPayload?.series) return;
   fetched = fredPayload.series;
   const sync=fredPayload.syncDate, prev=fredPayload.prevDate;
+  buildRealRateCards(sync, prev);
   buildTable(sync,prev);
   buildYieldChart(sync);
   buildSpreadChart(sync);
   buildLiquidityChart();
   // 검증은 비동기, 실패해도 무관
   runValidation(sync).catch(()=>{});
+}
+
+// ══════════════════════════════════════════════════════════
+// 매크로 탭: 실질금리 카드 (NEW 2026-05-16, Forza BW3) — 명목 − Breakeven
+// ══════════════════════════════════════════════════════════
+function buildRealRateCards(sync, prev){
+  const grid = document.getElementById('real-rate-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
+
+  const defs = [
+    {label:'5Y 실질', nominal:'DGS5',  breakeven:'T5YIE',  sub:'DGS5 − T5YIE'},
+    {label:'10Y 실질', nominal:'DGS10', breakeven:'T10YIE', sub:'DGS10 − T10YIE'},
+  ];
+
+  defs.forEach((d, idx) => {
+    const nomCur  = findVal(d.nominal, sync);
+    const beCur   = findVal(d.breakeven, sync);
+    const nomPrev = findVal(d.nominal, prev);
+    const bePrev  = findVal(d.breakeven, prev);
+
+    if(nomCur == null || beCur == null){
+      grid.insertAdjacentHTML('beforeend', `<div class="kpi"><span class="kpi-ribbon neutral"></span><div class="kpi-head"><div class="kpi-label">${d.label}</div><span class="kpi-src">FRED</span></div><div class="kpi-value loading">로딩 중…</div></div>`);
+      return;
+    }
+    const real = nomCur - beCur;
+    const realPrev = (nomPrev != null && bePrev != null) ? (nomPrev - bePrev) : null;
+    const diff = realPrev != null ? real - realPrev : null;
+    // 색: 음수 = blue (BW III·디스인플레), 1.5%+ = amber (긴축 강도), 그 외 neutral
+    const ribbon = real < 0 ? 'blue' : real > 1.5 ? 'amber' : real > 0.5 ? 'green' : 'neutral';
+    const interp = real < 0 ? '음수 — BW III·디스인플레 시그널' : real > 2.0 ? '강한 양수 — 긴축 강도' : real > 1.0 ? '양수 — 정상 긴축' : '약한 양수';
+
+    // historical 실질금리 시계열 (sparkline 용)
+    const nomArr = fetched[d.nominal] || [];
+    const beArr  = fetched[d.breakeven] || [];
+    const beMap = {};
+    for(const o of beArr) beMap[o.date] = parseFloat(o.value);
+    const realSeries = [];
+    for(const o of nomArr){
+      const nv = parseFloat(o.value);
+      const bv = beMap[o.date];
+      if(!isNaN(nv) && !isNaN(bv)){
+        realSeries.push({date: o.date, value: nv - bv});
+      }
+    }
+
+    const changeHTML = diff != null ? `<div class="kpi-change ${diff>=0?'pos':'neg'}">${diff>=0?'+':''}${diff.toFixed(3)}%p</div>` : '';
+    grid.insertAdjacentHTML('beforeend', `<div class="kpi"><span class="kpi-ribbon ${ribbon}"></span>
+      <div class="kpi-head"><div class="kpi-label">${d.label}</div><span class="kpi-src">FRED</span></div>
+      <div class="kpi-value">${real.toFixed(2)}%</div>
+      <div class="kpi-sub">${d.sub} · ${interp}</div>
+      ${changeHTML}
+      <div class="kpi-date">${sync}</div>
+      <div style="height:50px;margin-top:8px;position:relative;"><canvas id="real-rate-spark-${idx}"></canvas><div style="position:absolute;top:0;right:2px;font-size:9px;color:var(--muted);opacity:0.6;">1년</div></div>
+    </div>`);
+
+    setTimeout(()=>{ if(window._drawSpark) window._drawSpark('real-rate-spark-'+idx, realSeries, '#22d3ee', 365); }, 50);
+  });
 }
 
 // ══════════════════════════════════════════════════════════
