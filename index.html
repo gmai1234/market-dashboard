@@ -249,6 +249,12 @@
 
   <!-- 매크로 탭 -->
   <section class="tab-panel" id="tab-macro" hidden>
+    <!-- 매크로 종합 narrative (NEW 2026-05-16, Phase B) — 5 metric + 영역 분류 -->
+    <div class="card" style="margin-bottom:18px" id="macroNarrativeCard">
+      <div class="card-title">🧠 매크로 종합 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 5 metric 자동 상태 분류</span></div>
+      <div id="macroNarrative" style="font-size:13px;line-height:1.8;"></div>
+    </div>
+
     <!-- 실질 금리 (NEW 2026-05-16, Forza BW3 핵심) -->
     <div class="card" style="margin-bottom:18px" id="realRateCard">
       <div class="card-title">💎 실질 금리 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 − Breakeven · Forza BW3 핵심</span></div>
@@ -1331,6 +1337,7 @@ function renderMacroTab(fredPayload){
   if(!fredPayload?.series) return;
   fetched = fredPayload.series;
   const sync=fredPayload.syncDate, prev=fredPayload.prevDate;
+  buildMacroNarrative(sync, prev);
   buildRealRateCards(sync, prev);
   buildTable(sync,prev);
   buildYieldChart(sync);
@@ -1340,6 +1347,126 @@ function renderMacroTab(fredPayload){
   buildLiquidityChart();
   // 검증은 비동기, 실패해도 무관
   runValidation(sync).catch(()=>{});
+}
+
+// ══════════════════════════════════════════════════════════
+// 매크로 탭: 자동 narrative (NEW 2026-05-16) — 5 metric 영역 분류 (시각 보조)
+// 주의: 결정 추론 회피. 단순 영역·상태 분류만. Forza·Papic 등 thesis 결정은 한수 직접
+// ══════════════════════════════════════════════════════════
+function buildMacroNarrative(sync, prev){
+  const el = document.getElementById('macroNarrative');
+  if(!el) return;
+
+  // 1. 수익률 곡선 (T10Y3M)
+  const t10 = findVal('T10Y3M', sync);
+  let curveLabel = '데이터 없음', curveColor = '#64748b';
+  if(t10 != null){
+    if(t10 < 0)         { curveLabel = '역전';      curveColor = '#ef4444'; }
+    else if(t10 < 0.2)  { curveLabel = '평탄';      curveColor = '#f59e0b'; }
+    else                { curveLabel = '정상 기울기'; curveColor = '#22c55e'; }
+  }
+
+  // 2. NTFS (단기 선도 지표)
+  const ntfs = (typeof calcNTFS === 'function') ? calcNTFS(sync) : null;
+  let ntfsLabel = '데이터 없음', ntfsColor = '#64748b';
+  if(ntfs != null){
+    if(ntfs > 0.5)       { ntfsLabel = '인상 선반영'; ntfsColor = '#ef4444'; }
+    else if(ntfs < -0.5) { ntfsLabel = '인하 선반영'; ntfsColor = '#22c55e'; }
+    else                 { ntfsLabel = '중립';       ntfsColor = '#64748b'; }
+  }
+
+  // 3. 실질금리 10Y (DGS10 − T10YIE)
+  const nom10 = findVal('DGS10', sync);
+  const be10  = findVal('T10YIE', sync);
+  let realLabel = '데이터 없음', realColor = '#64748b', realValue = null;
+  if(nom10 != null && be10 != null){
+    realValue = nom10 - be10;
+    if(realValue < 0)        { realLabel = 'BW III 영역';   realColor = '#3b82f6'; }
+    else if(realValue < 1)   { realLabel = '약 긴축';        realColor = '#22c55e'; }
+    else if(realValue < 2)   { realLabel = '정상 긴축';      realColor = '#22c55e'; }
+    else                     { realLabel = '강 긴축';        realColor = '#f59e0b'; }
+  }
+
+  // 4. Core PCE YoY (월간 데이터, latest series[0] vs series[12])
+  const pceArr = fetched['PCEPILFE'] || [];
+  let pceLabel = '데이터 없음', pceColor = '#64748b', pceValue = null;
+  if(pceArr.length >= 13){
+    const lat = parseFloat(pceArr[0].value), yrAgo = parseFloat(pceArr[12].value);
+    if(!isNaN(lat) && !isNaN(yrAgo) && yrAgo > 0){
+      pceValue = ((lat / yrAgo) - 1) * 100;
+      if(pceValue > 3.5)       { pceLabel = '인플레 가속';      pceColor = '#ef4444'; }
+      else if(pceValue > 3.0)  { pceLabel = '정체';            pceColor = '#f59e0b'; }
+      else if(pceValue < 1.5)  { pceLabel = '디스인플레';       pceColor = '#3b82f6'; }
+      else                     { pceLabel = '안정';            pceColor = '#22c55e'; }
+    }
+  }
+
+  // 5. Net Liquidity 추세 (1개월 대비)
+  let netLiqLabel = '데이터 없음', netLiqColor = '#64748b', netDiff = null;
+  const walclArr = fetched['WALCL'] || [];
+  if(walclArr.length){
+    const wdMap = {}, rrpMap = {};
+    for(const o of (fetched['WDTGAL'] || [])) wdMap[o.date] = parseFloat(o.value);
+    for(const o of (fetched['RRPONTSYD'] || [])) rrpMap[o.date] = parseFloat(o.value);
+    const nearest = (map, dateStr) => {
+      if(map[dateStr] != null) return map[dateStr];
+      const keys = Object.keys(map).filter(k => k <= dateStr).sort();
+      return keys.length ? map[keys[keys.length-1]] : null;
+    };
+    const calcNet = (w) => {
+      const wd  = nearest(wdMap,  w.date);
+      const rrp = nearest(rrpMap, w.date);
+      if(wd == null || rrp == null) return null;
+      return (parseFloat(w.value) - wd - rrp * 1000) / 1_000_000;  // → T
+    };
+    const latestNet = calcNet(walclArr[0]);
+    // 1개월 전 (~4-5 weekly 데이터 전)
+    const monthAgo = walclArr.slice(0).find((o,i) => {
+      if(i === 0) return false;
+      const diffDays = (new Date(walclArr[0].date) - new Date(o.date)) / 86400000;
+      return diffDays >= 25 && diffDays <= 35;
+    });
+    const monthAgoNet = monthAgo ? calcNet(monthAgo) : null;
+    if(latestNet != null && monthAgoNet != null){
+      netDiff = latestNet - monthAgoNet;
+      if(netDiff >= 0.1)       { netLiqLabel = '확장';   netLiqColor = '#22c55e'; }
+      else if(netDiff <= -0.1) { netLiqLabel = '수축';   netLiqColor = '#ef4444'; }
+      else                     { netLiqLabel = '안정';   netLiqColor = '#64748b'; }
+    }
+  }
+
+  // === 1줄 narrative 합성 ===
+  const fmt = (label, color) => `<b style="color:${color}">${label}</b>`;
+  const realStr  = realValue != null ? `${realValue.toFixed(2)}% ` : '';
+  const pceStr   = pceValue  != null ? `${pceValue.toFixed(1)}% `  : '';
+  const netStr   = netDiff   != null ? `${netDiff >= 0 ? '+' : ''}${netDiff.toFixed(2)}T 월 ` : '';
+
+  const line1 = `<span style="color:var(--muted);">곡선</span> ${fmt(curveLabel, curveColor)} · ` +
+                `<span style="color:var(--muted);">NTFS</span> ${fmt(ntfsLabel, ntfsColor)} · ` +
+                `<span style="color:var(--muted);">실질</span> ${realStr}${fmt(realLabel, realColor)} · ` +
+                `<span style="color:var(--muted);">Core PCE</span> ${pceStr}${fmt(pceLabel, pceColor)} · ` +
+                `<span style="color:var(--muted);">유동성</span> ${netStr}${fmt(netLiqLabel, netLiqColor)}`;
+
+  // === 종합 영역 분류 (결정 추론 X, 영역 표시만) ===
+  let synthesis = '';
+  const isBW3Region   = realValue != null && realValue < 0;
+  const isPCEConcern  = pceValue  != null && pceValue > 3.0;
+  const isLiqContract = netDiff   != null && netDiff <= -0.1;
+
+  if(isBW3Region){
+    synthesis = '🔥 <b style="color:#3b82f6">BW III 영역</b> — 실질금리 음수, 자본 자산 이동 환경';
+  } else if(isPCEConcern && isLiqContract){
+    synthesis = '⚠️ <b style="color:#f59e0b">스태그 시그널</b> — 인플레 정체 + 유동성 수축 동시';
+  } else if(isPCEConcern){
+    synthesis = '⚠️ <b style="color:#f59e0b">인플레 정체</b> — Fed pressure 가능';
+  } else if(isLiqContract){
+    synthesis = '📉 <b style="color:#ef4444">유동성 수축 중</b> — 위험자산 valuation 압박';
+  } else {
+    synthesis = '✓ <b style="color:#22c55e">정상 긴축 환경</b> — BW III 영역 (음수 실질) 미발현';
+  }
+
+  el.innerHTML = `<div style="margin-bottom:8px;">${line1}</div>` +
+                 `<div style="font-size:12px;color:var(--muted);padding-top:8px;border-top:1px solid var(--border);">${synthesis}</div>`;
 }
 
 // ══════════════════════════════════════════════════════════
