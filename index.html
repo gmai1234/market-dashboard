@@ -1447,20 +1447,42 @@ function buildMacroNarrative(sync, prev){
                 `<span style="color:var(--muted);">Core PCE</span> ${pceStr}${fmt(pceLabel, pceColor)} · ` +
                 `<span style="color:var(--muted);">Net Liquidity</span> ${netStr}${fmt(netLiqLabel, netLiqColor)}`;
 
-  // === 종합 영역 분류 (결정 추론 X, 영역 표시만) ===
+  // === 종합 영역 분류 (NEW 2026-05-16: 10 시나리오, 우선순위 순) ===
+  // 주의: 결정 추론 X, 영역·상태 표시만. 한수 framework 사고는 한수 직접
   let synthesis = '';
-  const isBW3Region   = realValue != null && realValue < 0;
-  const isPCEConcern  = pceValue  != null && pceValue > 3.0;
-  const isLiqContract = netDiff   != null && netDiff <= -0.1;
+  const sv = findVal('SOFR', sync);
+  const iv = findVal('IORB', sync);
+  const sofrSpread = (sv != null && iv != null) ? (sv - iv) : null;
+  const t5yie = findVal('T5YIE', sync);
 
-  if(isBW3Region){
+  const isFundingStress      = sofrSpread != null && sofrSpread > 0.05;
+  const isCurveInverted      = t10        != null && t10 < 0;
+  const isBW3Region          = realValue  != null && realValue < 0;
+  const isPCEAccel           = pceValue   != null && pceValue > 4.0;
+  const isPCEConcern         = pceValue   != null && pceValue > 3.0;   // 3.0~4.0
+  const isLiqContract        = netDiff    != null && netDiff <= -0.1;
+  const isInflationExpectHigh= t5yie      != null && t5yie > 3.0;
+  const isFedCutComing       = ntfs       != null && ntfs < -0.5 && realValue != null && realValue < 1;
+
+  // 우선순위 if/else chain (위→아래 발동, 가장 급박·강한 시그널부터)
+  if(isFundingStress){
+    synthesis = `🚨 <b style="color:#ef4444">자금 스트레스</b> — SOFR−IORB +${sofrSpread.toFixed(3)}% (money plumbing 불안, 2019/09 패턴)`;
+  } else if(isCurveInverted){
+    synthesis = `🔻 <b style="color:#ef4444">수익률 곡선 역전</b> — 10Y−3M ${t10.toFixed(2)}% (경기 침체 leading indicator)`;
+  } else if(isBW3Region){
     synthesis = '🔥 <b style="color:#3b82f6">BW III 영역</b> — 실질금리 음수, 자본 자산 이동 환경';
   } else if(isPCEConcern && isLiqContract){
-    synthesis = '⚠️ <b style="color:#f59e0b">스태그 시그널</b> — 인플레 정체 + 유동성 수축 동시';
+    synthesis = '🌪 <b style="color:#f59e0b">스태그 시그널</b> — 인플레 정체 + 유동성 수축 동시';
+  } else if(isPCEAccel){
+    synthesis = `🚀 <b style="color:#ef4444">인플레 가속</b> — Core PCE ${pceValue.toFixed(1)}% (강 Hawkish 환경)`;
   } else if(isPCEConcern){
-    synthesis = '⚠️ <b style="color:#f59e0b">인플레 정체</b> — Fed pressure 가능';
+    synthesis = '⚠️ <b style="color:#f59e0b">인플레 정체</b> — Fed 추가 긴축 압박 가능';
+  } else if(isInflationExpectHigh){
+    synthesis = `📈 <b style="color:#f59e0b">인플레 기대 가속</b> — 5Y Breakeven ${t5yie.toFixed(2)}% (시장 기대 ↑)`;
   } else if(isLiqContract){
     synthesis = '📉 <b style="color:#ef4444">유동성 수축 중</b> — 위험자산 valuation 압박';
+  } else if(isFedCutComing){
+    synthesis = '📉 <b style="color:#22c55e">Fed cut cycle 임박</b> — NTFS 인하 선반영 강함';
   } else {
     synthesis = '✓ <b style="color:#22c55e">정상 긴축 환경</b> — BW III 영역 (음수 실질) 미발현';
   }
