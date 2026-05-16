@@ -259,6 +259,12 @@
     <div class="card" style="margin-bottom:18px" id="yieldCard">
       <div class="card-title">📈 미국채 일드커브 (명목 vs TIPS 실질) <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 4시점 비교 + TIPS 실질 곡선 overlay</span></div>
       <div class="chart-wrap"><canvas id="yieldChart"></canvas></div>
+      <!-- Yield table (NEW 2026-05-16) — 현재 시점 정확값 11 maturity × 3 row -->
+      <div style="margin-top:14px;overflow-x:auto;">
+        <table id="yieldTable" style="width:100%;font-size:11px;border-collapse:collapse;min-width:560px;">
+          <tbody id="yieldTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- 스프레드 + 유동성 -->
@@ -1298,10 +1304,55 @@ function renderMacroTab(fredPayload){
   buildRealRateCards(sync, prev);
   buildTable(sync,prev);
   buildYieldChart(sync);
+  buildYieldTable(sync);
   buildSpreadChart(sync);
   buildLiquidityChart();
   // 검증은 비동기, 실패해도 무관
   runValidation(sync).catch(()=>{});
+}
+
+// ══════════════════════════════════════════════════════════
+// 매크로 탭: 일드커브 정확값 표 (NEW 2026-05-16) — 11 maturity × 3 row
+// ══════════════════════════════════════════════════════════
+function buildYieldTable(sync){
+  const tbody = document.getElementById('yieldTableBody');
+  if(!tbody) return;
+
+  const maturities = [
+    {label:'1M',  nominal:'DGS1MO',  tips:null},
+    {label:'3M',  nominal:'DGS3MO',  tips:null},
+    {label:'6M',  nominal:'DGS6MO',  tips:null},
+    {label:'1Y',  nominal:'DGS1',    tips:null},
+    {label:'2Y',  nominal:'DGS2',    tips:null},
+    {label:'3Y',  nominal:'DGS3',    tips:null},
+    {label:'5Y',  nominal:'DGS5',    tips:'DFII5'},
+    {label:'7Y',  nominal:'DGS7',    tips:'DFII7'},
+    {label:'10Y', nominal:'DGS10',   tips:'DFII10'},
+    {label:'20Y', nominal:'DGS20',   tips:'DFII20'},
+    {label:'30Y', nominal:'DGS30',   tips:'DFII30'},
+  ];
+
+  const nomRow  = maturities.map(m => findVal(m.nominal, sync));
+  const tipsRow = maturities.map(m => m.tips ? findVal(m.tips, sync) : null);
+  const beRow   = maturities.map((m, i) => {
+    return (m.tips && nomRow[i] != null && tipsRow[i] != null) ? (nomRow[i] - tipsRow[i]) : null;
+  });
+
+  const fmtCell = v => v != null ? v.toFixed(2) + '%' : '<span style="color:var(--muted);opacity:0.4;">—</span>';
+
+  const headers = '<tr style="border-bottom:1px solid var(--border);color:var(--muted);">' +
+    '<th style="text-align:left;padding:6px 8px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Maturity</th>' +
+    maturities.map(m => `<th style="text-align:right;padding:6px 6px;font-weight:600;font-size:10px;letter-spacing:.3px;">${m.label}</th>`).join('') +
+    '</tr>';
+
+  const mkRow = (label, values, color, isCalc) =>
+    `<tr style="${isCalc ? 'border-top:1px solid var(--border);' : ''}"><td style="text-align:left;padding:6px 8px;color:${color};font-weight:600;font-size:11px;">${label}</td>` +
+    values.map(v => `<td style="text-align:right;padding:6px 6px;font-variant-numeric:tabular-nums;color:${v != null ? color : ''};">${fmtCell(v)}</td>`).join('') + '</tr>';
+
+  tbody.innerHTML = headers +
+    mkRow('명목',      nomRow,  '#ef4444', false) +
+    mkRow('TIPS 실질', tipsRow, '#a78bfa', false) +
+    mkRow('Breakeven', beRow,  '#94a3b8', true);
 }
 
 // ══════════════════════════════════════════════════════════
