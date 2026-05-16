@@ -270,7 +270,7 @@
       </div>
 
       <div class="card" id="netLiquidityCard">
-        <div class="card-title">💎 Net Liquidity <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· WALCL − TGA − RRP · Fed 결제 시스템 유동성</span></div>
+        <div class="card-title">💎 Net Liquidity <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· WALCL − TGA − RRP · Fed 결제 시스템 유동성</span><span id="netLiqCardDate" style="font-size:10px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px;"></span></div>
         <div id="netLiquiditySummary" style="font-size:20px;font-weight:700;color:#22d3ee;margin-bottom:10px;font-variant-numeric:tabular-nums;"></div>
         <div class="chart-wrap"><canvas id="netLiquidityChart"></canvas></div>
       </div>
@@ -1378,6 +1378,10 @@ function buildNetLiquidityChart(sync){
     return diff >= 25 && diff <= 35;
   });
 
+  // date 는 title 옆 span 으로 이동 (큰 차트 카드 통일)
+  const dEl = document.getElementById('netLiqCardDate');
+  if(dEl) dEl.textContent = latest.date ? '· ' + latest.date : '';
+
   const summaryEl = document.getElementById('netLiquiditySummary');
   if(summaryEl){
     const currentT = latest.value / 1_000_000;
@@ -1386,7 +1390,6 @@ function buildNetLiquidityChart(sync){
     const wColor = wDiff == null ? 'var(--muted)' : wDiff >= 0 ? '#22c55e' : '#ef4444';
     const mColor = mDiff == null ? 'var(--muted)' : mDiff >= 0 ? '#22c55e' : '#ef4444';
     summaryEl.innerHTML = `$${currentT.toFixed(2)}T` +
-      `<span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px;">${latest.date}</span>` +
       (wDiff != null ? `<span style="font-size:12px;color:${wColor};font-weight:600;margin-left:14px;">${wDiff>=0?'+':''}${wDiff.toFixed(2)}T 주</span>` : '') +
       (mDiff != null ? `<span style="font-size:12px;color:${mColor};font-weight:600;margin-left:10px;">${mDiff>=0?'+':''}${mDiff.toFixed(2)}T 월</span>` : '');
   }
