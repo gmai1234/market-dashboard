@@ -268,6 +268,13 @@
       </div>
     </div>
 
+    <!-- Net Liquidity (NEW 2026-05-16) — Pozsar style Fed liquidity in payment system -->
+    <div class="card" style="margin-bottom:18px" id="netLiquidityCard">
+      <div class="card-title">💎 Net Liquidity <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· WALCL − TGA − RRP · Fed 결제 시스템 유동성 (위험자산 cycle 강한 상관)</span></div>
+      <div id="netLiquiditySummary" style="font-size:20px;font-weight:700;color:#22d3ee;margin-bottom:10px;font-variant-numeric:tabular-nums;"></div>
+      <div class="chart-wrap"><canvas id="netLiquidityChart"></canvas></div>
+    </div>
+
     <!-- 스프레드 + 유동성 -->
     <div class="grid-charts" id="gridCharts">
       <div class="card">
@@ -1308,10 +1315,119 @@ function renderMacroTab(fredPayload){
   buildTable(sync,prev);
   buildYieldChart(sync);
   buildYieldTable(sync);
+  buildNetLiquidityChart(sync);
   buildSpreadChart(sync);
   buildLiquidityChart();
   // 검증은 비동기, 실패해도 무관
   runValidation(sync).catch(()=>{});
+}
+
+// ══════════════════════════════════════════════════════════
+// 매크로 탭: Net Liquidity 차트 (NEW 2026-05-16) — WALCL − WDTGAL − RRPONTSYD
+// ══════════════════════════════════════════════════════════
+function buildNetLiquidityChart(sync){
+  const walclArr = fetched['WALCL'] || [];
+  const wdtgalArr = fetched['WDTGAL'] || [];
+  const rrpArr = fetched['RRPONTSYD'] || [];
+  if(!walclArr.length) return;
+
+  // 시계열 합성 — WALCL 의 각 date 에 해당하는 WDTGAL + RRP 매핑
+  // 단위: WALCL/WDTGAL = millions of $, RRPONTSYD = billions of $ (FRED 정의)
+  const wdtgalMap = {}, rrpMap = {};
+  for(const o of wdtgalArr) wdtgalMap[o.date] = parseFloat(o.value);
+  for(const o of rrpArr) rrpMap[o.date] = parseFloat(o.value);
+
+  // WALCL 주간 (Wednesday close), 매핑 안 되면 가장 가까운 이전 date 사용
+  // 단순화: 동일 date 매칭만 사용 + WALCL date 기준
+  function findNearest(map, date){
+    if(map[date] != null) return map[date];
+    // 가장 가까운 이전 date 찾기
+    const keys = Object.keys(map).filter(k => k <= date).sort();
+    return keys.length ? map[keys[keys.length-1]] : null;
+  }
+
+  const series = [];
+  for(const o of walclArr){
+    const walcl = parseFloat(o.value);
+    const wdtgal = findNearest(wdtgalMap, o.date);
+    const rrp = findNearest(rrpMap, o.date);
+    if(!isNaN(walcl) && wdtgal != null && rrp != null){
+      const netM = walcl - wdtgal - (rrp * 1000);  // RRP 만 billions → millions 변환
+      series.push({date: o.date, value: netM});
+    }
+  }
+  if(!series.length) return;
+
+  // 현재값 + 1주/1개월 전 대비
+  const latest = series[0];
+  const oneWeekAgo = series.find(o => {
+    const diff = (new Date(latest.date) - new Date(o.date)) / 86400000;
+    return diff >= 5 && diff <= 9;
+  });
+  const oneMonthAgo = series.find(o => {
+    const diff = (new Date(latest.date) - new Date(o.date)) / 86400000;
+    return diff >= 25 && diff <= 35;
+  });
+
+  const summaryEl = document.getElementById('netLiquiditySummary');
+  if(summaryEl){
+    const currentT = latest.value / 1_000_000;
+    const wDiff = oneWeekAgo ? (latest.value - oneWeekAgo.value) / 1_000_000 : null;
+    const mDiff = oneMonthAgo ? (latest.value - oneMonthAgo.value) / 1_000_000 : null;
+    const wColor = wDiff == null ? 'var(--muted)' : wDiff >= 0 ? '#22c55e' : '#ef4444';
+    const mColor = mDiff == null ? 'var(--muted)' : mDiff >= 0 ? '#22c55e' : '#ef4444';
+    summaryEl.innerHTML = `$${currentT.toFixed(2)}T` +
+      `<span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px;">${latest.date}</span>` +
+      (wDiff != null ? `<span style="font-size:12px;color:${wColor};font-weight:600;margin-left:14px;">${wDiff>=0?'+':''}${wDiff.toFixed(2)}T 주</span>` : '') +
+      (mDiff != null ? `<span style="font-size:12px;color:${mColor};font-weight:600;margin-left:10px;">${mDiff>=0?'+':''}${mDiff.toFixed(2)}T 월</span>` : '');
+  }
+
+  // 차트 — 시계열 (좌=과거 → 우=최근)
+  const sorted = series.slice().sort((a,b) => a.date.localeCompare(b.date));
+  const labels = sorted.map(o => o.date.slice(5));
+  const data = sorted.map(o => (o.value / 1_000_000));
+
+  if(charts.netLiquidity) charts.netLiquidity.destroy();
+  charts.netLiquidity = new Chart(document.getElementById('netLiquidityChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Net Liquidity',
+        data: data,
+        borderColor: '#22d3ee',
+        backgroundColor: 'rgba(34, 211, 238, 0.12)',
+        borderWidth: LW(2.5),
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        tension: 0.25,
+        fill: true
+      }]
+    },
+    options: {
+      ...CD(),
+      plugins: {
+        ...CD().plugins,
+        legend: {display: false},
+        tooltip: {
+          ...CD().plugins.tooltip,
+          callbacks: {
+            label: (ctx) => `Net Liquidity: $${ctx.parsed.y.toFixed(2)}T`
+          }
+        }
+      },
+      scales: {
+        ...CD().scales,
+        y: {
+          ...CD().scales.y,
+          ticks: {
+            ...CD().scales.y.ticks,
+            callback: v => v != null ? `$${parseFloat(v).toFixed(1)}T` : ''
+          }
+        }
+      }
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════
