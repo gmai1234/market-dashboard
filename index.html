@@ -706,7 +706,21 @@ function renderKPIs(fredPayload, sentData){
   }
 
   if(fredPayload?.series){
-    // 3. T10Y3M
+    // 3. 10Y 국채 (DGS10) — 추가 2026-05-16
+    const cur10y=findVal('DGS10',sync);
+    const e10y=findEntry('DGS10',sync);
+    const prev10y=findVal('DGS10',prev);
+    const diff10y=(cur10y!=null && prev10y!=null)?cur10y-prev10y:null;
+    cards.push({label:'10Y 국채',src:'FRED',ribbon:'neutral',value:fmt(cur10y,3,'','%'),sub:'명목 수익률',change:chgEl(diff10y,3,'%p'),date:e10y?.date||'–',series:fetched['DGS10']||[]});
+
+    // 4. 3M 국채 (DGS3MO) — 추가 2026-05-16
+    const cur3m=findVal('DGS3MO',sync);
+    const e3m=findEntry('DGS3MO',sync);
+    const prev3m=findVal('DGS3MO',prev);
+    const diff3m=(cur3m!=null && prev3m!=null)?cur3m-prev3m:null;
+    cards.push({label:'3M 국채',src:'FRED',ribbon:'neutral',value:fmt(cur3m,3,'','%'),sub:'단기 명목 수익률',change:chgEl(diff3m,3,'%p'),date:e3m?.date||'–',series:fetched['DGS3MO']||[]});
+
+    // 5. T10Y3M
     const cur=findVal('T10Y3M',sync);
     const e=findEntry('T10Y3M',sync);
     const prevV=findVal('T10Y3M',prev);
@@ -811,6 +825,44 @@ function renderKPIs(fredPayload, sentData){
     } else cards.push({label:cc.label, src:cc.src, ribbon:'neutral', loading:true});
   }
 
+  // === 인플레이션 6 카드 (CPI · Core CPI · PCE · Core PCE · PPI · 5Y Breakeven) — 추가 2026-05-16 ===
+  function yoyFromIndex(arr){
+    if(!arr || arr.length < 13) return null;
+    const latest = arr[0], yearAgo = arr[12];
+    if(!latest || !yearAgo) return null;
+    const lv = parseFloat(latest.value), yv = parseFloat(yearAgo.value);
+    if(isNaN(lv) || isNaN(yv) || yv === 0) return null;
+    return ((lv / yv) - 1) * 100;
+  }
+  const inflationDefs = [
+    {key:'CPIAUCSL', label:'CPI',      sub:'YoY · target 2%'},
+    {key:'CPILFESL', label:'Core CPI', sub:'YoY · ex food&energy'},
+    {key:'PCEPI',    label:'PCE',      sub:'YoY · Fed measure'},
+    {key:'PCEPILFE', label:'Core PCE', sub:'YoY · Fed preferred'},
+    {key:'PPIACO',   label:'PPI',      sub:'YoY · 생산자'},
+  ];
+  for(const id of inflationDefs){
+    const arr = fetched[id.key] || [];
+    const yoy = yoyFromIndex(arr);
+    if(yoy != null){
+      const e = arr[0];
+      const prevYoy = yoyFromIndex(arr.slice(1));
+      const diff = (prevYoy != null) ? yoy - prevYoy : null;
+      const ribbon = yoy > 3.5 ? 'red' : yoy > 2.5 ? 'amber' : yoy < 1.5 ? 'blue' : 'green';
+      cards.push({label:id.label, src:'FRED', ribbon, value:fmt(yoy,1,'','%'), sub:id.sub, change:chgEl(diff,2,'%p'), date:e?.date||'–', series:arr});
+    } else cards.push({label:id.label, src:'FRED', ribbon:'neutral', loading:true});
+  }
+  // 5Y Breakeven (이미 % 단위, 일별)
+  const beArr = fetched['T5YIE'] || [];
+  if(beArr.length){
+    const lat = beArr[0], pv = beArr[1]?.value;
+    const latV = parseFloat(lat.value);
+    const pvV = (pv != null) ? parseFloat(pv) : null;
+    const diff = (pvV != null && !isNaN(pvV)) ? latV - pvV : null;
+    const ribbon = latV > 3.0 ? 'amber' : latV < 1.8 ? 'blue' : 'neutral';
+    cards.push({label:'5Y Breakeven', src:'FRED', ribbon, value:fmt(latV,2,'','%'), sub:'market 기대 인플레', change:chgEl(diff,2,'%p'), date:lat.date, series:beArr});
+  } else cards.push({label:'5Y Breakeven', src:'FRED', ribbon:'neutral', loading:true});
+
   // 카드를 카테고리별로 그룹화 (push 순서 기반: 0-1=sentiment, 2-6=macro, 7-11=fx, 12-15=commodities)
   function cardHTML(c, idx){
     if(c.loading){
@@ -831,10 +883,11 @@ function renderKPIs(fredPayload, sentData){
 
   // index 기반 그룹 분리
   const groups = [
-    {label:'센티멘트',  color:'#22c55e', range:[0,2]},      // F&G, AAII
-    {label:'매크로',    color:'#3b82f6', range:[2,7]},      // T10Y3M, NTFS, SOFR-IORB, 준비금, TGA
-    {label:'환율 + 암호화폐', color:'#60a5fa', range:[7,12]}, // DXY, USD/KRW, EUR/USD, BTC, ETH
-    {label:'원자재',    color:'#fb923c', range:[12,16]},    // Gold, WTI, Copper, Uranium
+    {label:'센티멘트',          color:'#22c55e', range:[0,2]},      // F&G, AAII
+    {label:'매크로',            color:'#3b82f6', range:[2,9]},      // 10Y, 3M, T10Y3M, NTFS, SOFR-IORB, 준비금, TGA
+    {label:'환율 + 암호화폐',    color:'#60a5fa', range:[9,14]},     // DXY, USD/KRW, EUR/USD, BTC, ETH
+    {label:'원자재',            color:'#fb923c', range:[14,18]},    // Gold, WTI, Copper, Uranium
+    {label:'물가',              color:'#a78bfa', range:[18,24]},    // CPI, Core CPI, PCE, Core PCE, PPI, 5Y Breakeven
   ];
 
   grid.innerHTML = groups.map(g=>{
@@ -882,6 +935,23 @@ function renderAlerts(fredPayload, sentData){
     if(ntfs!=null){
       if(ntfs>0.5) alerts.push({cls:'amber',icon:'📈',text:`<b>금리 인상 선반영</b> — NTFS ${ntfs.toFixed(3)}%`});
       else if(ntfs<-0.5) alerts.push({cls:'green',icon:'📉',text:`<b>금리 인하 선반영</b> — NTFS ${ntfs.toFixed(3)}%`});
+    }
+
+    // 인플레이션 alerts (월간 데이터, latest = series[0]) — 추가 2026-05-16
+    const corePCEArr = fredPayload.series?.PCEPILFE || [];
+    if(corePCEArr.length >= 13){
+      const latPCE = parseFloat(corePCEArr[0].value), yrAgoPCE = parseFloat(corePCEArr[12].value);
+      if(!isNaN(latPCE) && !isNaN(yrAgoPCE) && yrAgoPCE > 0){
+        const yoy = ((latPCE/yrAgoPCE) - 1) * 100;
+        if(yoy > 3.5) alerts.push({cls:'red', icon:'🔥', text:`<b>Core PCE 가속</b> — ${yoy.toFixed(1)}% (Fed target +${(yoy-2).toFixed(1)}%p)`});
+        else if(yoy > 3.0) alerts.push({cls:'amber', icon:'⚠️', text:`<b>Core PCE 정체</b> — ${yoy.toFixed(1)}%`});
+        else if(yoy < 1.5) alerts.push({cls:'blue', icon:'🧊', text:`<b>디스인플레 리스크</b> — Core PCE ${yoy.toFixed(1)}%`});
+      }
+    }
+    const t5y = findVal('T5YIE', sync);
+    if(t5y != null){
+      if(t5y > 3.0) alerts.push({cls:'amber', icon:'📈', text:`<b>인플레 기대 상승</b> — 5Y Breakeven ${t5y.toFixed(2)}%`});
+      else if(t5y < 1.8) alerts.push({cls:'blue', icon:'📉', text:`<b>디스인플레 기대</b> — 5Y Breakeven ${t5y.toFixed(2)}%`});
     }
   }
   if(sentData?.fear_greed){
