@@ -255,24 +255,25 @@
       <div id="real-rate-grid" class="kpi-grid"></div>
     </div>
 
-    <!-- 일드커브 (전체 폭) -->
-    <div class="card" style="margin-bottom:18px" id="yieldCard">
-      <div class="card-title">📈 미국채 일드커브 (명목 vs TIPS 실질) <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 4시점 비교 + TIPS 실질 곡선 overlay</span></div>
-      <div class="chart-wrap"><canvas id="yieldChart"></canvas></div>
-      <!-- Yield table (NEW 2026-05-16, aligned with chart) — 데스크탑 가로 / 모바일 세로 transpose -->
-      <div style="margin-top:14px;">
-        <table id="yieldTable" style="width:100%;font-size:11px;border-collapse:collapse;table-layout:fixed;">
-          <colgroup id="yieldTableColgroup"></colgroup>
-          <tbody id="yieldTableBody"></tbody>
-        </table>
+    <!-- 일드커브 + Net Liquidity (PC 2 column / 모바일 stack) — 2026-05-16 grid 묶음 -->
+    <div class="grid-charts">
+      <div class="card" id="yieldCard">
+        <div class="card-title">📈 미국채 일드커브 (명목 vs TIPS) <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 4시점 + TIPS overlay</span></div>
+        <div class="chart-wrap"><canvas id="yieldChart"></canvas></div>
+        <!-- Yield table — 데스크탑 가로 / 모바일 세로 transpose -->
+        <div style="margin-top:14px;">
+          <table id="yieldTable" style="width:100%;font-size:10px;border-collapse:collapse;table-layout:fixed;">
+            <colgroup id="yieldTableColgroup"></colgroup>
+            <tbody id="yieldTableBody"></tbody>
+          </table>
+        </div>
       </div>
-    </div>
 
-    <!-- Net Liquidity (NEW 2026-05-16) — Pozsar style Fed liquidity in payment system -->
-    <div class="card" style="margin-bottom:18px" id="netLiquidityCard">
-      <div class="card-title">💎 Net Liquidity <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· WALCL − TGA − RRP · Fed 결제 시스템 유동성 (위험자산 cycle 강한 상관)</span></div>
-      <div id="netLiquiditySummary" style="font-size:20px;font-weight:700;color:#22d3ee;margin-bottom:10px;font-variant-numeric:tabular-nums;"></div>
-      <div class="chart-wrap"><canvas id="netLiquidityChart"></canvas></div>
+      <div class="card" id="netLiquidityCard">
+        <div class="card-title">💎 Net Liquidity <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· WALCL − TGA − RRP · Fed 결제 시스템 유동성</span></div>
+        <div id="netLiquiditySummary" style="font-size:20px;font-weight:700;color:#22d3ee;margin-bottom:10px;font-variant-numeric:tabular-nums;"></div>
+        <div class="chart-wrap"><canvas id="netLiquidityChart"></canvas></div>
+      </div>
     </div>
 
     <!-- 스프레드 + 유동성 -->
@@ -1135,7 +1136,7 @@ function buildYieldChart(sync){
     options:{...CD(),layout:{padding:{top:isMobile()?16:22, left:0, right:isMobile()?2:8}},
       scales:{...CD().scales,
         x:{...CD().scales.x, offset:true},
-        y:{...CD().scales.y, afterFit:(axis)=>{axis.width = isMobile()?44:50;},
+        y:{...CD().scales.y, afterFit:(axis)=>{axis.width = isMobile()?44:40;},
           min:minY,max:maxY,ticks:{...CD().scales.y.ticks,callback:v=>v!=null?v.toFixed(2)+'%':''}}}}});}
 
 function buildSpreadChart(sync){
@@ -1481,17 +1482,17 @@ function buildYieldTable(sync){
 
     tbody.innerHTML = headers + rows;
   } else {
-    // 데스크탑: 11 maturity column × 3 row — chart 와 가로 정렬 (col 1 = y-axis 폭 50px 매치)
-    colgroup.innerHTML = '<col style="width:50px;"><col span="11">';
+    // 데스크탑: 11 maturity column × 3 row — chart 와 가로 정렬 (col 1 = y-axis 폭 40px 매치)
+    colgroup.innerHTML = '<col style="width:40px;"><col span="11">';
 
     const headers = '<tr style="border-bottom:1px solid var(--border);color:var(--muted);">' +
-      '<th style="text-align:left;padding:6px 4px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Maturity</th>' +
-      maturities.map(m => `<th style="text-align:center;padding:6px 2px;font-weight:600;font-size:10px;letter-spacing:.3px;">${m.label}</th>`).join('') +
+      '<th style="text-align:left;padding:5px 3px;font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.4px;">Mat.</th>' +
+      maturities.map(m => `<th style="text-align:center;padding:5px 1px;font-weight:600;font-size:9px;letter-spacing:.2px;">${m.label}</th>`).join('') +
       '</tr>';
 
     const mkRow = (label, values, color, isCalc) =>
-      `<tr style="${isCalc ? 'border-top:1px solid var(--border);' : ''}"><td style="text-align:left;padding:6px 4px;color:${color};font-weight:600;font-size:11px;">${label}</td>` +
-      values.map(v => `<td style="text-align:center;padding:6px 2px;font-variant-numeric:tabular-nums;color:${v != null ? color : ''};">${fmtCell(v)}</td>`).join('') + '</tr>';
+      `<tr style="${isCalc ? 'border-top:1px solid var(--border);' : ''}"><td style="text-align:left;padding:5px 3px;color:${color};font-weight:600;font-size:10px;">${label}</td>` +
+      values.map(v => `<td style="text-align:center;padding:5px 1px;font-variant-numeric:tabular-nums;color:${v != null ? color : ''};">${fmtCell(v)}</td>`).join('') + '</tr>';
 
     tbody.innerHTML = headers +
       mkRow('명목',      nomVals,  '#ef4444', false) +
