@@ -257,7 +257,7 @@
 
     <!-- 일드커브 (전체 폭) -->
     <div class="card" style="margin-bottom:18px" id="yieldCard">
-      <div class="card-title">📈 미국채 일드커브 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 현재 vs 1M/6M/1Y 전</span></div>
+      <div class="card-title">📈 미국채 일드커브 (명목 vs TIPS 실질) <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 4시점 비교 + TIPS 실질 곡선 overlay</span></div>
       <div class="chart-wrap"><canvas id="yieldChart"></canvas></div>
     </div>
 
@@ -1085,16 +1085,39 @@ function buildYieldChart(sync){
     pointBorderWidth: isCurrent ? 2 : 1,
     _isCurrent: isCurrent,
     data:Object.keys(TREASURY_IDS).map(id=>findVal(id,date))});
+
+  // TIPS dataset (실질 곡선, 5Y/7Y/10Y/20Y/30Y만, 나머지는 null) — 추가 2026-05-16
+  const tipsMap = {DGS5:'DFII5', DGS7:'DFII7', DGS10:'DFII10', DGS20:'DFII20', DGS30:'DFII30'};
+  const mkTips = (label, date, color, lw, dash=[], isCurrent=false) => ({
+    label, borderColor:color, backgroundColor:'transparent',
+    borderWidth:LW(lw), borderDash:dash,
+    pointRadius: isCurrent ? (isMobile()?3:3) : (isMobile()?2:2),
+    pointHoverRadius: isCurrent ? (isMobile()?5:5) : 4,
+    pointBackgroundColor: isCurrent ? hexToRgba(color, 0.35) : color,
+    pointBorderColor: color,
+    pointBorderWidth: isCurrent ? 2 : 1,
+    spanGaps: true,
+    data: Object.keys(TREASURY_IDS).map(id => {
+      const tipsId = tipsMap[id];
+      return tipsId ? findVal(tipsId, date) : null;
+    })
+  });
+
   const vals=Object.keys(TREASURY_IDS).map(id=>findVal(id,sync)).filter(v=>v!==null);
-  if(!vals.length) return;
-  const minY=Math.floor(Math.min(...vals)*10)/10-.3, maxY=Math.ceil(Math.max(...vals)*10)/10+.3;
+  const tipsVals = Object.values(tipsMap).map(id=>findVal(id,sync)).filter(v=>v!==null);
+  const allVals = [...vals, ...tipsVals];
+  if(!allVals.length) return;
+  const minY=Math.floor(Math.min(...allVals)*10)/10-.3, maxY=Math.ceil(Math.max(...allVals)*10)/10+.3;
   if(charts.yield)charts.yield.destroy();
   charts.yield=new Chart(document.getElementById('yieldChart'),{type:'line',
     data:{labels:Object.values(TREASURY_IDS),datasets:[
-      mk('현재',sync,'#ef4444',4,[],true),
-      mk('1M 전',pastDate(sync,30),'#f59e0b',2,[5,5]),
-      mk('6M 전',pastDate(sync,180),'#6366f1',2,[5,5]),
-      mk('1Y 전',pastDate(sync,365),'#22c55e',2,[5,5])]},
+      mk('명목 (현재)',sync,'#ef4444',4,[],true),
+      mk('명목 (1M 전)',pastDate(sync,30),'#f59e0b',2,[5,5]),
+      mk('명목 (6M 전)',pastDate(sync,180),'#6366f1',2,[5,5]),
+      mk('명목 (1Y 전)',pastDate(sync,365),'#22c55e',2,[5,5]),
+      mkTips('TIPS 실질 (현재)', sync, '#a78bfa', 4, [], true),
+      mkTips('TIPS 실질 (1Y 전)', pastDate(sync,365), '#c4b5fd', 2, [3,3])
+    ]},
     options:{...CD(),layout:{padding:{top:isMobile()?16:22}},
       scales:{...CD().scales,y:{...CD().scales.y,
       min:minY,max:maxY,ticks:{...CD().scales.y.ticks,callback:v=>v!=null?v.toFixed(2)+'%':''}}}}});}
