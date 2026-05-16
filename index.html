@@ -259,9 +259,10 @@
     <div class="card" style="margin-bottom:18px" id="yieldCard">
       <div class="card-title">📈 미국채 일드커브 (명목 vs TIPS 실질) <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 명목 4시점 비교 + TIPS 실질 곡선 overlay</span></div>
       <div class="chart-wrap"><canvas id="yieldChart"></canvas></div>
-      <!-- Yield table (NEW 2026-05-16) — 현재 시점 정확값 11 maturity × 3 row -->
-      <div style="margin-top:14px;overflow-x:auto;">
-        <table id="yieldTable" style="width:100%;font-size:11px;border-collapse:collapse;min-width:560px;">
+      <!-- Yield table (NEW 2026-05-16, aligned with chart) — 데스크탑 가로 / 모바일 세로 transpose -->
+      <div style="margin-top:14px;">
+        <table id="yieldTable" style="width:100%;font-size:11px;border-collapse:collapse;table-layout:fixed;">
+          <colgroup id="yieldTableColgroup"></colgroup>
           <tbody id="yieldTableBody"></tbody>
         </table>
       </div>
@@ -1124,9 +1125,11 @@ function buildYieldChart(sync){
       mkTips('TIPS 실질 (현재)', sync, '#a78bfa', 4, [], true),
       mkTips('TIPS 실질 (1Y 전)', pastDate(sync,365), '#c4b5fd', 2, [3,3])
     ]},
-    options:{...CD(),layout:{padding:{top:isMobile()?16:22}},
-      scales:{...CD().scales,y:{...CD().scales.y,
-      min:minY,max:maxY,ticks:{...CD().scales.y.ticks,callback:v=>v!=null?v.toFixed(2)+'%':''}}}}});}
+    options:{...CD(),layout:{padding:{top:isMobile()?16:22, left:0, right:isMobile()?2:8}},
+      scales:{...CD().scales,
+        x:{...CD().scales.x, offset:true},
+        y:{...CD().scales.y, afterFit:(axis)=>{axis.width = isMobile()?44:50;},
+          min:minY,max:maxY,ticks:{...CD().scales.y.ticks,callback:v=>v!=null?v.toFixed(2)+'%':''}}}}});}
 
 function buildSpreadChart(sync){
   const obs=(fetched['SOFR']||[]).slice(0,150).sort((a,b)=>a.date.localeCompare(b.date));
@@ -1312,11 +1315,12 @@ function renderMacroTab(fredPayload){
 }
 
 // ══════════════════════════════════════════════════════════
-// 매크로 탭: 일드커브 정확값 표 (NEW 2026-05-16) — 11 maturity × 3 row
+// 매크로 탭: 일드커브 정확값 표 (NEW 2026-05-16) — 데스크탑 가로 (chart 정렬) / 모바일 세로 transpose
 // ══════════════════════════════════════════════════════════
 function buildYieldTable(sync){
   const tbody = document.getElementById('yieldTableBody');
-  if(!tbody) return;
+  const colgroup = document.getElementById('yieldTableColgroup');
+  if(!tbody || !colgroup) return;
 
   const maturities = [
     {label:'1M',  nominal:'DGS1MO',  tips:null},
@@ -1332,27 +1336,51 @@ function buildYieldTable(sync){
     {label:'30Y', nominal:'DGS30',   tips:'DFII30'},
   ];
 
-  const nomRow  = maturities.map(m => findVal(m.nominal, sync));
-  const tipsRow = maturities.map(m => m.tips ? findVal(m.tips, sync) : null);
-  const beRow   = maturities.map((m, i) => {
-    return (m.tips && nomRow[i] != null && tipsRow[i] != null) ? (nomRow[i] - tipsRow[i]) : null;
-  });
+  const nomVals  = maturities.map(m => findVal(m.nominal, sync));
+  const tipsVals = maturities.map(m => m.tips ? findVal(m.tips, sync) : null);
+  const beVals   = maturities.map((m, i) => (m.tips && nomVals[i] != null && tipsVals[i] != null) ? (nomVals[i] - tipsVals[i]) : null);
 
   const fmtCell = v => v != null ? v.toFixed(2) + '%' : '<span style="color:var(--muted);opacity:0.4;">—</span>';
+  const isNarrow = window.innerWidth < 768;
 
-  const headers = '<tr style="border-bottom:1px solid var(--border);color:var(--muted);">' +
-    '<th style="text-align:left;padding:6px 8px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Maturity</th>' +
-    maturities.map(m => `<th style="text-align:right;padding:6px 6px;font-weight:600;font-size:10px;letter-spacing:.3px;">${m.label}</th>`).join('') +
-    '</tr>';
+  if(isNarrow){
+    // 모바일: 11 maturity row × 4 column (Maturity / 명목 / TIPS / B/E)
+    colgroup.innerHTML = '<col style="width:54px;"><col><col><col>';
 
-  const mkRow = (label, values, color, isCalc) =>
-    `<tr style="${isCalc ? 'border-top:1px solid var(--border);' : ''}"><td style="text-align:left;padding:6px 8px;color:${color};font-weight:600;font-size:11px;">${label}</td>` +
-    values.map(v => `<td style="text-align:right;padding:6px 6px;font-variant-numeric:tabular-nums;color:${v != null ? color : ''};">${fmtCell(v)}</td>`).join('') + '</tr>';
+    const headers = '<tr style="border-bottom:1px solid var(--border);color:var(--muted);">' +
+      '<th style="text-align:left;padding:6px 8px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Mat.</th>' +
+      '<th style="text-align:right;padding:6px 4px;font-weight:600;font-size:10px;color:#ef4444;">명목</th>' +
+      '<th style="text-align:right;padding:6px 4px;font-weight:600;font-size:10px;color:#a78bfa;">TIPS</th>' +
+      '<th style="text-align:right;padding:6px 4px;font-weight:600;font-size:10px;color:#94a3b8;">B/E</th>' +
+      '</tr>';
 
-  tbody.innerHTML = headers +
-    mkRow('명목',      nomRow,  '#ef4444', false) +
-    mkRow('TIPS 실질', tipsRow, '#a78bfa', false) +
-    mkRow('Breakeven', beRow,  '#94a3b8', true);
+    const rows = maturities.map((m, i) =>
+      `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="text-align:left;padding:5px 8px;font-weight:600;font-size:11px;">${m.label}</td>` +
+      `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${nomVals[i] != null ? '#ef4444' : ''};">${fmtCell(nomVals[i])}</td>` +
+      `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${tipsVals[i] != null ? '#a78bfa' : ''};">${fmtCell(tipsVals[i])}</td>` +
+      `<td style="text-align:right;padding:5px 4px;font-variant-numeric:tabular-nums;color:${beVals[i] != null ? '#94a3b8' : ''};">${fmtCell(beVals[i])}</td>` +
+      '</tr>'
+    ).join('');
+
+    tbody.innerHTML = headers + rows;
+  } else {
+    // 데스크탑: 11 maturity column × 3 row — chart 와 가로 정렬 (col 1 = y-axis 폭 50px 매치)
+    colgroup.innerHTML = '<col style="width:50px;"><col span="11">';
+
+    const headers = '<tr style="border-bottom:1px solid var(--border);color:var(--muted);">' +
+      '<th style="text-align:left;padding:6px 4px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;">Maturity</th>' +
+      maturities.map(m => `<th style="text-align:center;padding:6px 2px;font-weight:600;font-size:10px;letter-spacing:.3px;">${m.label}</th>`).join('') +
+      '</tr>';
+
+    const mkRow = (label, values, color, isCalc) =>
+      `<tr style="${isCalc ? 'border-top:1px solid var(--border);' : ''}"><td style="text-align:left;padding:6px 4px;color:${color};font-weight:600;font-size:11px;">${label}</td>` +
+      values.map(v => `<td style="text-align:center;padding:6px 2px;font-variant-numeric:tabular-nums;color:${v != null ? color : ''};">${fmtCell(v)}</td>`).join('') + '</tr>';
+
+    tbody.innerHTML = headers +
+      mkRow('명목',      nomVals,  '#ef4444', false) +
+      mkRow('TIPS 실질', tipsVals, '#a78bfa', false) +
+      mkRow('Breakeven', beVals,  '#94a3b8', true);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
