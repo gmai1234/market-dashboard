@@ -924,6 +924,21 @@ function renderKPIs(fredPayload, sentData){
     cards.push({label:'5Y Breakeven', src:'FRED', ribbon, value:fmt(latV,2,'','%'), sub:'market 기대 인플레', change:chgEl(diff,2,'%p'), date:lat.date, series:beArr});
   } else cards.push({label:'5Y Breakeven', src:'FRED', ribbon:'neutral', loading:true});
 
+  // === pre-IPO 프리미엄 2 카드 (VCX · DXYZ) — 추가 2026-06-02 ===
+  {
+    const preipo = window.PREIPO_DATA;
+    ['VCX','DXYZ'].forEach(tk=>{
+      const it = preipo?.items?.[tk];
+      const ser = preipo?.series?.[tk];
+      if(it){
+        const m = it.premium_mult;
+        const ribbon = m>=8?'red':m>=1.5?'amber':'neutral';
+        const off = (it.off_peak_pct!=null)?` · 고점 ${it.off_peak_pct>0?'+':''}${Math.round(it.off_peak_pct)}%`:'';
+        cards.push({label:tk+' 프리미엄', src:it.src||'NAV', ribbon, value:fmt(m,1,'','배'), sub:'프리미엄 '+(it.premium_pct>=0?'+':'')+Math.round(it.premium_pct)+'%'+off, change:chgEl(it.delta_pp,1,'%p'), date:it.date||it.nav_as_of||'', series:ser||[]});
+      } else cards.push({label:tk+' 프리미엄', src:'NAV', ribbon:'neutral', loading:true});
+    });
+  }
+
   // 카드를 카테고리별로 그룹화 (push 순서 기반: 0-1=sentiment, 2-6=macro, 7-11=fx, 12-15=commodities)
   function cardHTML(c, idx){
     if(c.loading){
@@ -949,6 +964,7 @@ function renderKPIs(fredPayload, sentData){
     {label:'물가',              color:'#a78bfa', range:[18,24]},    // CPI, Core CPI, PCE, Core PCE, PPI, 5Y Breakeven (매크로 인접 — 실질금리 cross-ref)
     {label:'환율 + 암호화폐',    color:'#60a5fa', range:[9,14]},     // DXY, USD/KRW, EUR/USD, BTC, ETH
     {label:'원자재',            color:'#fb923c', range:[14,18]},    // Gold, WTI, Copper, Uranium
+    {label:'pre-IPO 프리미엄', color:'#ec4899', range:[24,26]},   // VCX, DXYZ (추가 2026-06-02)
   ];
 
   grid.innerHTML = groups.map(g=>{
@@ -2263,6 +2279,7 @@ window.addEventListener('resize',()=>{
 
 <!-- Commodities 모듈 -->
 <script src="https://gmai1234.github.io/commodities-dashboard/commodities_data.js" async onload="window._comLoaded=true;window._comRender&&window._comRender();window._bootstrap&&window._bootstrap();window._refreshOverview&&window._refreshOverview()"></script>
+<script src="https://gmai1234.github.io/commodities-dashboard/preipo_data.js" async onload="window._preipoLoaded=true;window._bootstrap&&window._bootstrap();window._refreshOverview&&window._refreshOverview()"></script>
 <style>
   #tab-commodities .com-cat-section{margin-bottom:22px;}
   #tab-commodities .com-cat-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
