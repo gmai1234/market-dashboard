@@ -1037,6 +1037,25 @@ function renderAlerts(fredPayload, sentData){
     else if(fg<=20) alerts.push({cls:'blue',icon:'🧊',text:`<b>극도의 공포</b> — Fear &amp; Greed ${fg.toFixed(1)} (역발상 기회 후보)`});
   }
 
+  // === pre-IPO 프리미엄 임계 알림 (추가 2026-06-02) ===
+  const _preipo = window.PREIPO_DATA;
+  if(_preipo?.items){
+    const LOCKUP = {VCX:'2026-09-15'};  // VCX 6개월 lockup 만료 추정(공급 충격). 정확 일자 확인 시 갱신
+    for(const [tk, it] of Object.entries(_preipo.items)){
+      const m=it.premium_mult, d=it.delta_pp, op=it.off_peak_pct;
+      if(m!=null && m>=15) alerts.push({cls:'red', icon:'🔴', text:`<b>${tk} 프리미엄 광기</b> — ${m.toFixed(1)}배 (정점 추격 경고, 매수 X)`});
+      else if(m!=null && m>=10) alerts.push({cls:'amber', icon:'🔥', text:`<b>${tk} 프리미엄 과열</b> — ${m.toFixed(1)}배`});
+      if(d!=null && d>=150) alerts.push({cls:'amber', icon:'📈', text:`<b>${tk} 프리미엄 급가속</b> — 전일 +${Math.round(d)}%p (광풍 재점화)`});
+      else if(d!=null && d<=-150) alerts.push({cls:'amber', icon:'📉', text:`<b>${tk} 프리미엄 급락</b> — 전일 ${Math.round(d)}%p (froth 식는 중, risk-off 선행 주시)`});
+      if(op!=null && op>=-10 && m!=null && m>=8) alerts.push({cls:'amber', icon:'⚠️', text:`<b>${tk} 정점 재근접</b> — 고점 대비 ${Math.round(op)}%`});
+      const lk=LOCKUP[tk];
+      if(lk){
+        const days=Math.round((new Date(lk)-new Date())/86400000);
+        if(days<=30 && days>=-15) alerts.push({cls:'amber', icon:'⏳', text:`<b>${tk} lockup 임박</b> — ${lk} 전후 공급 충격 주시 (D${days>=0?'-'+days:'+'+(-days)})`});
+      }
+    }
+  }
+
   if(alerts.length===0){
     box.innerHTML = `<div class="alert-none">특이 시그널 없음 — 정상 레인지</div>`;
   } else {
