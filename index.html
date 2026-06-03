@@ -2086,6 +2086,7 @@ window._refreshOverview = function(){
     setTimeout(window._refreshOverview, 100);
     return;
   }
+  renderAlerts(window._macroPayload || null, window.SENTIMENT_DATA || null);
   renderKPIs(window._macroPayload || null, window.SENTIMENT_DATA || null);
 };
 
