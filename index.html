@@ -245,6 +245,12 @@
     <div id="kpiGrid">
       <!-- 4 sub-section: macro / sentiment / fx / commodities (동적 렌더) -->
     </div>
+
+    <div class="section-title">조정 성격 진단</div>
+    <div class="card" id="correctionDiagCard" style="margin-bottom:18px">
+      <div class="card-title">🧭 조정 성격 진단 <span style="font-size:10px;font-weight:400;color:#4b5563;text-transform:none;letter-spacing:0">· 급락 시 신용 스프레드(HY OAS)로 시스템 위기 vs 포지션 청산 판별</span></div>
+      <div id="correctionDiagBody" style="font-size:13px;line-height:1.7;color:var(--muted)">로딩…</div>
+    </div>
   </section>
 
   <!-- 매크로 탭 -->
@@ -2090,6 +2096,37 @@ window._refreshOverview = function(){
   renderKPIs(window._macroPayload || null, window.SENTIMENT_DATA || null);
 };
 
+// 조정 성격 진단 (HY OAS 신용 스프레드) — 2026-06-16 추가
+function renderCorrectionDiagnostic(){
+  const el = document.getElementById('correctionDiagBody');
+  if(!el) return;
+  const ser = (typeof fetched!=='undefined' && fetched && fetched.BAMLH0A0HYM2) ? fetched.BAMLH0A0HYM2 : null;
+  const clean = (ser||[]).filter(o=>o && o.value!=='.' && o.value!=null && o.value!=='');
+  if(!clean.length){ el.innerHTML='<span style="color:var(--muted)">HY OAS 데이터 로딩 대기…</span>'; return; }
+  const val = parseFloat(clean[0].value);
+  const date = clean[0].date;
+  const prev = clean[1]?parseFloat(clean[1].value):null;
+  const diff = (prev!=null)?(val-prev):null;
+  let label,color,desc;
+  if(val<3.5){ label='🟢 비시스템 (정상)'; color='var(--green)'; desc='신용시장 평온. 주가 급락이 와도 부도/시스템 위기가 아니라 포지션 청산·기술적 조정일 확률이 높음 → 보유 유지·watchlist 매수 준비.'; }
+  else if(val<5){ label='🟡 긴장'; color='var(--amber)'; desc='신용 프리미엄 상승 중 — 경계 구간. 주식 변동성·금리 변동성 동반 상승 여부를 함께 확인.'; }
+  else { label='🔴 시스템 경고'; color='#ef4444'; desc='신용 경색 — 시장이 부도 위험을 가격에 반영하는 중. 디리스크·stack 집중도 점검.'; }
+  let deltaHtml='';
+  if(diff!=null){ const up=diff>0; const arr=up?'▲':(diff<0?'▼':'–'); const dc=up?'#ef4444':(diff<0?'var(--green)':'var(--muted)'); deltaHtml=' <span style="font-size:12px;color:'+dc+'">'+arr+' '+Math.abs(diff).toFixed(2)+'%p</span>'; }
+  el.innerHTML =
+    '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px">'
+    + '<span style="font-size:28px;font-weight:700;color:'+color+';font-variant-numeric:tabular-nums">'+val.toFixed(2)+'%</span>'
+    + '<span style="font-size:15px;font-weight:600;color:'+color+'">'+label+'</span>'
+    + deltaHtml
+    + '<span style="font-size:10px;color:var(--muted)">HY OAS · '+date+'</span>'
+    + '</div>'
+    + '<div style="color:var(--sub);margin-bottom:8px">'+desc+'</div>'
+    + '<div style="font-size:10px;color:var(--muted);border-top:1px solid var(--border);padding-top:7px">'
+    + '눈금: 🟢 &lt;3.5% 평온 · 🟡 3.5–5% 긴장 · 🔴 &gt;5% 위기 (참고: 코로나 ~11%, 2008 ~20%). '
+    + 'HY OAS = 정크본드가 미국 국채보다 요구하는 추가 금리 = 신용 공포 게이지. 주가 급락 + 이 수치 급등이 동반돼야 진짜 시스템 위기.'
+    + '</div>';
+}
+
 window._bootstrap = async function(){
   if(!(window._fredLoaded && window._sentLoaded)) return;
   if(window._rendered) return;
@@ -2103,6 +2140,7 @@ window._bootstrap = async function(){
   renderAlerts(fred, sent);
   renderKPIs(fred, sent);
   renderMacroTab(fred);
+  renderCorrectionDiagnostic();
   renderSentimentTab(sent);
   if(window._inflationRender) window._inflationRender();
   updateStatus(fred, sent);
@@ -2125,6 +2163,7 @@ setTimeout(()=>{
     renderAlerts(fred, sent);
     renderKPIs(fred, sent);
     renderMacroTab(fred);
+    renderCorrectionDiagnostic();
     renderSentimentTab(sent);
     if(window._inflationRender) window._inflationRender();
     updateStatus(fred, sent);
